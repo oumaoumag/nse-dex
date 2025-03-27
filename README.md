@@ -30,7 +30,7 @@ Tajiri is a cutting-edge, blockchain-based financial platform designed to tokeni
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/tajiri-v2.git
+   git clone https://github.com/leakeyqq/tajiri-v2.git
    cd tajiri-v2
    ```
 
