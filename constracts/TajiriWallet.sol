@@ -9,15 +9,29 @@ contract TajiriWallet {
     uint256 public guardianCount;
     uint256 public recoveryThreshold;
     uint256 public nonce;
+    
+    // New recovery state tracking
+    bool public recoveryInProgress;
+    address public recoveryInitiator;
+    address public proposedNewOwner;
+    mapping(address => bool) public recoveryApprovals;
+    uint256 public recoveryApprovalCount;
+    uint256 public recoveryTimestamp;
+    uint256 public constant RECOVERY_TIMELOCK = 2 days;
 
     mapping(bytes32 => bool) public executedTxs;
 
     address constant HTS_PRECOMPILE = address(0x167);
 
     event Executed(address indexed target, uint256 value, bytes data, bytes response);
+    event BatchExecuted(address[] targets, uint256[] values, bytes[] data);
     event GuardianAdded(address indexed guardian);
     event GuardianRemoved(address indexed guardian);
     event OwnerChanged(address indexed oldOwner, address indexed newOwner);
+    event RecoveryInitiated(address indexed initiator, address indexed proposedOwner);
+    event RecoveryApproved(address indexed guardian, address indexed proposedOwner);
+    event RecoveryCancelled();
+    event RecoveryCompleted(address indexed oldOwner, address indexed newOwner);
 
     /// @notice Constructor to initialize the wallet with an owner
     /// @param _owner The initial owner of the wallet
@@ -43,6 +57,28 @@ contract TajiriWallet {
         require(success, "Execution failed");
         emit Executed(target, value, data, response);
         return response;
+    }
+    
+    /// @notice Execute multiple transactions in a single call (batched transactions)
+    /// @param targets Array of target addresses to call
+    /// @param values Array of HBAR amounts to send with each call
+    /// @param data Array of calldata for each target
+    function executeBatch(
+        address[] calldata targets,
+        uint256[] calldata values,
+        bytes[] calldata data
+    ) external payable onlyOwner {
+        require(targets.length > 0, "Empty batch");
+        require(targets.length == values.length && values.length == data.length, "Array length mismatch");
+        
+        // Execute each transaction in the batch
+        for (uint256 i = 0; i < targets.length; i++) {
+            require(targets[i] != address(0), "Invalid target address");
+            (bool success, ) = targets[i].call{value: values[i]}(data[i]);
+            require(success, "Batch execution failed");
+        }
+        
+        emit BatchExecuted(targets, values, data);
     }
 
     /// @notice Add a guardian for social recovery
@@ -70,8 +106,135 @@ contract TajiriWallet {
         require(newThreshold > 0 && newThreshold <= guardianCount, "Invalid threshold");
         recoveryThreshold = newThreshold;
     }
+    
+    /// @notice Get all guardians
+    /// @return Array of guardian addresses
+    function getGuardians() external view returns (address[] memory) {
+        address[] memory result = new address[](guardianCount);
+        uint256 index = 0;
+        
+        // This is inefficient in a real-world scenario but works for our demo
+        for (uint i = 0; i < 100; i++) {
+            address potentialGuardian = address(uint160(i));
+            if (guardians[potentialGuardian]) {
+                result[index] = potentialGuardian;
+                index++;
+                if (index >= guardianCount) break;
+            }
+        }
+        
+        return result;
+    }
+    
+    /// @notice Get the current recovery status
+    /// @return inProgress Whether recovery is in progress
+    /// @return initiator The address that initiated recovery
+    /// @return newOwner The proposed new owner
+    /// @return approvalCount Current number of approvals
+    /// @return timeRemaining Time remaining until the recovery can be completed
+    function getRecoveryStatus() external view returns (
+        bool inProgress,
+        address initiator,
+        address newOwner,
+        uint256 approvalCount,
+        uint256 timeRemaining
+    ) {
+        if (recoveryInProgress) {
+            uint256 elapsed = block.timestamp - recoveryTimestamp;
+            uint256 remaining = elapsed >= RECOVERY_TIMELOCK ? 0 : RECOVERY_TIMELOCK - elapsed;
+            return (
+                true,
+                recoveryInitiator,
+                proposedNewOwner,
+                recoveryApprovalCount,
+                remaining
+            );
+        } else {
+            return (false, address(0), address(0), 0, 0);
+        }
+    }
+    
+    /// @notice Initiate the social recovery process
+    /// @param newOwner The proposed new owner address
+    function initiateRecovery(address newOwner) external {
+        require(guardians[msg.sender], "Only guardians can initiate recovery");
+        require(newOwner != address(0), "Invalid new owner address");
+        require(!recoveryInProgress, "Recovery already in progress");
+        
+        // Initialize recovery state
+        recoveryInProgress = true;
+        recoveryInitiator = msg.sender;
+        proposedNewOwner = newOwner;
+        recoveryTimestamp = block.timestamp;
+        
+        // Reset approvals and add the initiator's approval
+        recoveryApprovalCount = 1;
+        recoveryApprovals[msg.sender] = true;
+        
+        emit RecoveryInitiated(msg.sender, newOwner);
+    }
+    
+    /// @notice Approve an ongoing recovery process
+    /// @param newOwner Must match the currently proposed owner
+    function approveRecovery(address newOwner) external {
+        require(guardians[msg.sender], "Only guardians can approve recovery");
+        require(recoveryInProgress, "No recovery in progress");
+        require(newOwner == proposedNewOwner, "Proposed owner mismatch");
+        require(!recoveryApprovals[msg.sender], "Already approved");
+        
+        recoveryApprovals[msg.sender] = true;
+        recoveryApprovalCount++;
+        
+        emit RecoveryApproved(msg.sender, newOwner);
+        
+        // If we have enough approvals and timelock has passed, complete recovery
+        if (recoveryApprovalCount >= recoveryThreshold && 
+            (block.timestamp - recoveryTimestamp) >= RECOVERY_TIMELOCK) {
+            _completeRecovery();
+        }
+    }
+    
+    /// @notice Complete the recovery process after timelock and threshold are met
+    function completeRecovery() external {
+        require(recoveryInProgress, "No recovery in progress");
+        require(recoveryApprovalCount >= recoveryThreshold, "Not enough approvals");
+        require((block.timestamp - recoveryTimestamp) >= RECOVERY_TIMELOCK, "Timelock not expired");
+        
+        _completeRecovery();
+    }
+    
+    /// @notice Internal function to complete the recovery
+    function _completeRecovery() internal {
+        address oldOwner = owner;
+        owner = proposedNewOwner;
+        
+        // Reset recovery state
+        _resetRecoveryState();
+        
+        emit RecoveryCompleted(oldOwner, owner);
+        emit OwnerChanged(oldOwner, owner);
+    }
+    
+    /// @notice Cancel an ongoing recovery process
+    function cancelRecovery() external {
+        require(recoveryInProgress, "No recovery in progress");
+        require(msg.sender == owner || guardians[msg.sender], "Unauthorized");
+        
+        _resetRecoveryState();
+        
+        emit RecoveryCancelled();
+    }
+    
+    /// @notice Reset the recovery state
+    function _resetRecoveryState() internal {
+        recoveryInProgress = false;
+        recoveryInitiator = address(0);
+        proposedNewOwner = address(0);
+        recoveryApprovalCount = 0;
+        recoveryTimestamp = 0;
+    }
 
-    /// @notice Recover wallet ownership using guardian signatures
+    /// @notice Recover wallet ownership using guardian signatures (legacy method)
     /// @param newOwner The new owner address
     /// @param signatures Array of guardian signatures
     function recoverWallet(address newOwner, bytes[] calldata signatures) external {
@@ -170,6 +333,7 @@ contract TajiriWallet {
         );
         require(success, "Token transfer failed");
     }
+    
     /// @notice Recover the signer from a signature
     /// @param messageHash The hash of the signed message
     /// @param signature The signature bytes
@@ -198,11 +362,11 @@ contract TajiriWallet {
     }
 
     /// @notice Modifier to restrict access to the owner
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Not authorized");
+    modifier onlyOwner {
+        require(msg.sender == owner, "Not the owner");
         _;
     }
 
+    /// @notice Receive function to accept HBAR
     receive() external payable {}
-    fallback() external payable {}
 }
