@@ -11,6 +11,27 @@ Tajiri is a cutting-edge, blockchain-based financial platform designed to tokeni
 - **Lending Protocol**: Borrow against tokenized stocks or lend stablecoins for interest
 - **Educational Resources**: Comprehensive learning tools for investors of all experience levels
 
+## Account Abstraction Implementation
+
+Tajiri uses advanced account abstraction features to simplify user interaction with blockchain technology:
+
+1. **Smart Contract Wallets**: Users interact with the blockchain through their personal smart contract wallet that handles transaction complexity and gas fees.
+
+2. **Social Recovery**: Our smart wallets include guardian-based recovery, allowing users to regain access to their accounts if they lose their private keys.
+
+3. **Gasless Transactions**: Tajiri can sponsor gas fees for certain transactions, removing the need for users to hold HBAR just for transaction fees.
+
+4. **Batched Transactions**: Multiple actions (e.g., approve and swap) can be executed in a single transaction, reducing fees and improving UX.
+
+5. **Enhanced Security**: Transaction authorization is more flexible, with options for multi-signature approvals and guardian-based recovery.
+
+To deploy the smart contracts that power these features:
+
+```bash
+# In the frontend directory
+npm run deploy-contracts
+```
+
 ## Tech Stack
 
 - **Frontend**: Next.js with TypeScript, Tailwind CSS
@@ -49,12 +70,19 @@ Tajiri is a cutting-edge, blockchain-based financial platform designed to tokeni
    NEXT_PUBLIC_MY_PRIVATE_KEY=your-private-key
    ```
 
-4. Start the development server:
+4. Deploy contracts (optional, for a full development setup):
+   ```bash
+   npm run deploy-contracts
+   ```
+   
+   Make sure to update the `.env.local` file with the contract IDs from the deployment.
+
+5. Run the development server:
    ```bash
    npm run dev
    ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
+6. Open [http://localhost:3000](http://localhost:3000) to see the application.
 
 ## Project Structure
 
