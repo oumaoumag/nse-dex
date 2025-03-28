@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy-contracts": "node scripts/deploy-contracts.js",
+    "test-hedera": "node scripts/test-hedera-connection.js",
+    "compile-mocks": "node scripts/compile-mock-contracts.js",
+    "deploy-mocks": "node scripts/compile-mock-contracts.js && node scripts/deploy-mock-contracts.js"
   },
   "dependencies": {
     "@hashgraph/sdk": "^2.39.0",
@@ -28,6 +32,7 @@
     "eslint": "8.56.0",
     "eslint-config-next": "14.0.4",
     "postcss": "^8.4.33",
+    "solc": "^0.8.20",
     "tailwindcss": "^3.4.1"
   }
 }
