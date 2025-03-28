@@ -1,124 +1,154 @@
-import Link from 'next/link';
+'use client';
+
+import React from 'react';
+import MarketplaceItem from '@/components/MarketplaceItem';
+import { useWallet } from '@/contexts/WalletContext';
 
 export default function MarketplacePage() {
+  const { isConnected, smartWalletId } = useWallet();
+
+  // Mock data for marketplace items - in a real app, this would come from an API
+  const stockItems = [
+    {
+      id: "0.0.1234567",
+      name: "Safaricom PLC",
+      symbol: "SCOM",
+      price: 24.75,
+      change: 2.5,
+      image: "https://seeklogo.com/images/S/safaricom-logo-6FA31107D7-seeklogo.com.png",
+    },
+    {
+      id: "0.0.1234568",
+      name: "Equity Group",
+      symbol: "EQTY",
+      price: 38.20,
+      change: -0.8,
+      image: "https://www.equitygroupholdings.com/wp-content/uploads/2019/10/equity-group-holdings.jpg",
+    },
+    {
+      id: "0.0.1234569",
+      name: "Kenya Airways",
+      symbol: "KQ",
+      price: 12.45,
+      change: 1.2,
+      image: "https://logos-download.com/wp-content/uploads/2016/03/Kenya_Airways_logo_logotype_emblem.png",
+    },
+    {
+      id: "0.0.1234570",
+      name: "East African Breweries",
+      symbol: "EABL",
+      price: 145.60,
+      change: 0.5,
+      image: "https://www.eabl.com/sites/eabl_ke/files/2020-01/EABL_Logo.jpg",
+    },
+  ];
+
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4 text-primary-900 dark:text-white">
-          <span className="bg-gradient-to-r from-primary-600 to-secondary-500 inline-block text-transparent bg-clip-text">Trading Marketplace</span>
-        </h1>
-        <p className="mb-8 text-primary-600 dark:text-primary-300 max-w-2xl mx-auto">
-          The trading marketplace is coming soon. Here you will be able to buy, sell, and trade tokenized NSE stocks.
-        </p>
-      </div>
-      
-      <div className="max-w-3xl mx-auto bg-gradient-to-b from-primary-50 to-white dark:from-primary-900 dark:to-primary-950 p-8 rounded-2xl border border-primary-100 dark:border-primary-800 shadow-xl">
-        <div className="flex items-center mb-6">
-          <div className="rounded-full bg-gradient-to-r from-primary-500 to-secondary-500 p-3 w-12 h-12 flex items-center justify-center text-white mr-5">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-semibold text-primary-900 dark:text-white">Coming Soon</h2>
+    <div className="flex flex-col min-h-screen">
+      {/* Hero Section */}
+      <section className="relative bg-gradient-to-b from-primary-50 via-primary-100 to-white dark:from-primary-950 dark:via-primary-900 dark:to-primary-950 py-12 md:py-20 overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-24 -right-24 w-96 h-96 bg-secondary-400 opacity-10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 -left-24 w-80 h-80 bg-primary-400 opacity-10 rounded-full blur-3xl"></div>
         </div>
-        
-        <p className="text-primary-700 dark:text-primary-300 mb-6">
-          We're currently developing the trading marketplace. Check back soon for access to:
-        </p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          {features.map((feature, index) => (
-            <div key={index} className="flex p-4 rounded-xl bg-white dark:bg-primary-800 shadow-sm">
-              <div className="rounded-full bg-primary-100 dark:bg-primary-700 p-2 mr-4 text-primary-600 dark:text-primary-300 self-start">
-                {feature.icon}
-              </div>
-              <div>
-                <h3 className="font-medium text-primary-900 dark:text-white mb-1">{feature.name}</h3>
-                <p className="text-sm text-primary-600 dark:text-primary-400">{feature.description}</p>
-              </div>
+        <div className="container mx-auto px-4 relative">
+          <h1 className="text-3xl md:text-4xl font-bold text-primary-900 dark:text-white mb-4">
+            Tokenized Stock <span className="bg-gradient-to-r from-primary-600 to-secondary-500 inline-block text-transparent bg-clip-text">Marketplace</span>
+          </h1>
+          <p className="text-lg text-primary-700 dark:text-primary-300 max-w-2xl mb-6">
+            Trade tokenized stocks from the Nairobi Securities Exchange with the security and efficiency of Hedera's blockchain.
+          </p>
+          
+          {isConnected && smartWalletId ? (
+            <div className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 p-4 rounded-lg mb-6 max-w-md">
+              <p className="font-medium">✓ Account Abstraction Enabled</p>
+              <p className="text-sm">You're using a smart contract wallet that handles gas fees and simplifies transactions.</p>
             </div>
-          ))}
+          ) : isConnected ? (
+            <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 p-4 rounded-lg mb-6 max-w-md">
+              <p className="font-medium">⚠️ Create a Smart Wallet</p>
+              <p className="text-sm">Connect your wallet and create a smart wallet to enable account abstraction for seamless trading.</p>
+            </div>
+          ) : (
+            <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 p-4 rounded-lg mb-6 max-w-md">
+              <p className="font-medium">ℹ️ Connect Your Wallet</p>
+              <p className="text-sm">Connect your wallet to start trading with the benefits of account abstraction.</p>
+            </div>
+          )}
         </div>
-        
-        <div className="mt-8 text-center">
-          <p className="text-primary-600 dark:text-primary-400 mb-6">Want to know when we launch? Join our waitlist for early access.</p>
-          <Link 
-            href="/"
-            className="inline-flex items-center justify-center rounded-md bg-gradient-to-r from-primary-600 to-secondary-600 px-6 py-3 text-base font-medium text-white shadow-lg hover:from-primary-700 hover:to-secondary-700 transition-all"
-          >
-            Return Home
-          </Link>
+      </section>
+
+      {/* Marketplace Grid */}
+      <section className="py-16 bg-white dark:bg-primary-950">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {stockItems.map((item) => (
+              <MarketplaceItem
+                key={item.id}
+                id={item.id}
+                name={item.name}
+                symbol={item.symbol}
+                price={item.price}
+                change={item.change}
+                image={item.image}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      </section>
       
-      <div className="mt-16 p-6 rounded-xl bg-primary-50 dark:bg-primary-900/30 max-w-4xl mx-auto">
-        <h3 className="text-xl font-semibold text-primary-900 dark:text-white mb-4">Why tokenized trading?</h3>
-        <ul className="space-y-3">
-          <li className="flex items-start">
-            <svg className="w-5 h-5 text-secondary-500 mr-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span className="text-primary-700 dark:text-primary-300">Fractional ownership allows you to invest in expensive stocks with any amount</span>
-          </li>
-          <li className="flex items-start">
-            <svg className="w-5 h-5 text-secondary-500 mr-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span className="text-primary-700 dark:text-primary-300">24/7 trading with no market hours limitations</span>
-          </li>
-          <li className="flex items-start">
-            <svg className="w-5 h-5 text-secondary-500 mr-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span className="text-primary-700 dark:text-primary-300">Lower fees and faster settlement than traditional stock brokers</span>
-          </li>
-          <li className="flex items-start">
-            <svg className="w-5 h-5 text-secondary-500 mr-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span className="text-primary-700 dark:text-primary-300">Use your tokenized stocks as collateral for loans in our lending protocol</span>
-          </li>
-        </ul>
-      </div>
+      {/* Account Abstraction Benefits Section */}
+      <section className="py-16 bg-primary-50 dark:bg-primary-900">
+        <div className="container mx-auto px-4">
+          <h2 className="text-2xl md:text-3xl font-bold text-primary-900 dark:text-white mb-10 text-center">
+            Benefits of Account Abstraction
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="bg-white dark:bg-primary-800 p-6 rounded-xl shadow-md">
+              <div className="rounded-full bg-primary-100 dark:bg-primary-700 w-12 h-12 flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-primary-600 dark:text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-primary-900 dark:text-white mb-3">
+                Gas Fee Optimization
+              </h3>
+              <p className="text-primary-600 dark:text-primary-400">
+                The platform can pay for transaction fees on your behalf, eliminating the need for you to hold HBAR just for gas.
+              </p>
+            </div>
+            
+            <div className="bg-white dark:bg-primary-800 p-6 rounded-xl shadow-md">
+              <div className="rounded-full bg-primary-100 dark:bg-primary-700 w-12 h-12 flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-primary-600 dark:text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-primary-900 dark:text-white mb-3">
+                Enhanced Security
+              </h3>
+              <p className="text-primary-600 dark:text-primary-400">
+                Social recovery options protect your assets if you lose access to your account. Guardians can help recover your wallet.
+              </p>
+            </div>
+            
+            <div className="bg-white dark:bg-primary-800 p-6 rounded-xl shadow-md">
+              <div className="rounded-full bg-primary-100 dark:bg-primary-700 w-12 h-12 flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-primary-600 dark:text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-primary-900 dark:text-white mb-3">
+                Simplified Experience
+              </h3>
+              <p className="text-primary-600 dark:text-primary-400">
+                No need to understand blockchain complexities. Trade stocks just like you would on traditional platforms.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
-}
-
-const features = [
-  {
-    name: 'Tokenized NSE Stocks',
-    description: 'Trade digital representations of popular NSE stocks like Safaricom, Equity Bank, and more.',
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    ),
-  },
-  {
-    name: 'Stablecoin Trading Pairs',
-    description: 'Buy and sell stocks using USDC and USDT stablecoins for price stability.',
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-  },
-  {
-    name: 'Interactive Price Charts',
-    description: 'Advanced charting tools with technical indicators for informed decision making.',
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-      </svg>
-    ),
-  },
-  {
-    name: 'Lending & Borrowing',
-    description: 'Earn interest by lending or use your stocks as collateral for loans.',
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-      </svg>
-    ),
-  },
-]; 
+} 
