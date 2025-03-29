@@ -2,14 +2,17 @@
 
 import React from 'react';
 import { useWallet } from '@/contexts/WalletContext';
+import { StockProvider } from '@/contexts/StockContext';
 import WalletConnection from '@/components/WalletConnection';
 import GuardianManager from '@/components/GuardianManager';
+import Portfolio from '@/components/Portfolio';
 
 export default function WalletPage() {
   const { isConnected, smartWalletId } = useWallet();
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <StockProvider>
+      <div className="flex flex-col min-h-screen">
       {/* Header Section */}
       <section className="relative bg-gradient-to-b from-primary-50 via-primary-100 to-white dark:from-primary-950 dark:via-primary-900 dark:to-primary-950 py-12 md:py-20 overflow-hidden">
         <div className="absolute inset-0 overflow-hidden">
@@ -130,6 +133,19 @@ export default function WalletPage() {
           </a>
         </div>
       </section>
-    </div>
+      
+      {/* Portfolio Section */}
+      {isConnected && smartWalletId && (
+        <section className="py-16 bg-white dark:bg-primary-950">
+          <div className="container mx-auto px-4">
+            <h2 className="text-2xl md:text-3xl font-bold text-primary-900 dark:text-white mb-8">
+              Your Token Portfolio
+            </h2>
+            <Portfolio />
+          </div>
+        </section>
+      )}
+      </div>
+    </StockProvider>
   );
 } 
