@@ -1,154 +1,144 @@
 'use client';
 
 import React from 'react';
-import MarketplaceItem from '@/components/MarketplaceItem';
+import StockMarketplace from '@/components/StockMarketplace';
 import { useWallet } from '@/contexts/WalletContext';
+import { StockProvider } from '@/contexts/StockContext';
 
 export default function MarketplacePage() {
   const { isConnected, smartWalletId } = useWallet();
 
-  // Mock data for marketplace items - in a real app, this would come from an API
-  const stockItems = [
-    {
-      id: "0.0.1234567",
-      name: "Safaricom PLC",
-      symbol: "SCOM",
-      price: 24.75,
-      change: 2.5,
-      image: "https://seeklogo.com/images/S/safaricom-logo-6FA31107D7-seeklogo.com.png",
-    },
-    {
-      id: "0.0.1234568",
-      name: "Equity Group",
-      symbol: "EQTY",
-      price: 38.20,
-      change: -0.8,
-      image: "https://www.equitygroupholdings.com/wp-content/uploads/2019/10/equity-group-holdings.jpg",
-    },
-    {
-      id: "0.0.1234569",
-      name: "Kenya Airways",
-      symbol: "KQ",
-      price: 12.45,
-      change: 1.2,
-      image: "https://logos-download.com/wp-content/uploads/2016/03/Kenya_Airways_logo_logotype_emblem.png",
-    },
-    {
-      id: "0.0.1234570",
-      name: "East African Breweries",
-      symbol: "EABL",
-      price: 145.60,
-      change: 0.5,
-      image: "https://www.eabl.com/sites/eabl_ke/files/2020-01/EABL_Logo.jpg",
-    },
-  ];
-
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Hero Section */}
-      <section className="relative bg-gradient-to-b from-primary-50 via-primary-100 to-white dark:from-primary-950 dark:via-primary-900 dark:to-primary-950 py-12 md:py-20 overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-24 -right-24 w-96 h-96 bg-secondary-400 opacity-10 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 -left-24 w-80 h-80 bg-primary-400 opacity-10 rounded-full blur-3xl"></div>
-        </div>
-        <div className="container mx-auto px-4 relative">
-          <h1 className="text-3xl md:text-4xl font-bold text-primary-900 dark:text-white mb-4">
-            Tokenized Stock <span className="bg-gradient-to-r from-primary-600 to-secondary-500 inline-block text-transparent bg-clip-text">Marketplace</span>
-          </h1>
-          <p className="text-lg text-primary-700 dark:text-primary-300 max-w-2xl mb-6">
-            Trade tokenized stocks from the Nairobi Securities Exchange with the security and efficiency of Hedera's blockchain.
-          </p>
-          
-          {isConnected && smartWalletId ? (
-            <div className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 p-4 rounded-lg mb-6 max-w-md">
-              <p className="font-medium">✓ Account Abstraction Enabled</p>
-              <p className="text-sm">You're using a smart contract wallet that handles gas fees and simplifies transactions.</p>
-            </div>
-          ) : isConnected ? (
-            <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 p-4 rounded-lg mb-6 max-w-md">
-              <p className="font-medium">⚠️ Create a Smart Wallet</p>
-              <p className="text-sm">Connect your wallet and create a smart wallet to enable account abstraction for seamless trading.</p>
-            </div>
-          ) : (
-            <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 p-4 rounded-lg mb-6 max-w-md">
-              <p className="font-medium">ℹ️ Connect Your Wallet</p>
-              <p className="text-sm">Connect your wallet to start trading with the benefits of account abstraction.</p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Marketplace Grid */}
-      <section className="py-16 bg-white dark:bg-primary-950">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {stockItems.map((item) => (
-              <MarketplaceItem
-                key={item.id}
-                id={item.id}
-                name={item.name}
-                symbol={item.symbol}
-                price={item.price}
-                change={item.change}
-                image={item.image}
-              />
-            ))}
+    <StockProvider>
+      <div className="flex flex-col min-h-screen">
+        {/* Hero Section - Safaricom Decode style */}
+        <section className="relative bg-decode-black py-20 md:py-32 overflow-hidden">
+          {/* Abstract decorative elements */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-decode-green opacity-5 rounded-full blur-3xl"></div>
+            <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-decode-blue opacity-5 rounded-full blur-3xl"></div>
+            <div className="absolute top-1/4 left-1/3 w-1 h-40 bg-decode-green/20"></div>
+            <div className="absolute bottom-1/3 right-1/4 w-40 h-1 bg-decode-green/20"></div>
           </div>
-        </div>
-      </section>
-      
-      {/* Account Abstraction Benefits Section */}
-      <section className="py-16 bg-primary-50 dark:bg-primary-900">
-        <div className="container mx-auto px-4">
-          <h2 className="text-2xl md:text-3xl font-bold text-primary-900 dark:text-white mb-10 text-center">
-            Benefits of Account Abstraction
-          </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white dark:bg-primary-800 p-6 rounded-xl shadow-md">
-              <div className="rounded-full bg-primary-100 dark:bg-primary-700 w-12 h-12 flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-primary-600 dark:text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+          <div className="container mx-auto px-4 relative z-10">
+            <div className="max-w-4xl mx-auto text-center mb-16">
+              <div className="inline-block mb-3">
+                <div className="h-1 w-16 bg-decode-green mb-6 mx-auto"></div>
+                <h1 className="decode-heading text-4xl md:text-6xl text-decode-white mb-6">
+                  TOKENIZED <span className="text-decode-green">STOCK</span> MARKETPLACE
+                </h1>
               </div>
-              <h3 className="text-xl font-semibold text-primary-900 dark:text-white mb-3">
-                Gas Fee Optimization
-              </h3>
-              <p className="text-primary-600 dark:text-primary-400">
-                The platform can pay for transaction fees on your behalf, eliminating the need for you to hold HBAR just for gas.
+              <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+                Trade tokenized stocks from the Nairobi Securities Exchange with the security and efficiency of Hedera's blockchain technology.
+              </p>
+              
+              {/* Wallet status indicators with Safaricom Decode styling */}
+              {isConnected && smartWalletId ? (
+                <div className="decode-card border border-decode-green/30 p-4 rounded-lg mb-10 max-w-md mx-auto text-left">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="text-decode-green">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <p className="font-bold text-decode-white">Account Abstraction Enabled</p>
+                  </div>
+                  <p className="text-sm text-gray-400 pl-9">You're using a smart contract wallet that handles gas fees and simplifies transactions.</p>
+                </div>
+              ) : isConnected ? (
+                <div className="decode-card border border-yellow-500/30 p-4 rounded-lg mb-10 max-w-md mx-auto text-left">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="text-yellow-500">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <p className="font-bold text-decode-white">Create a Smart Wallet</p>
+                  </div>
+                  <p className="text-sm text-gray-400 pl-9">Connect your wallet and create a smart wallet to enable account abstraction for seamless trading.</p>
+                </div>
+              ) : (
+                <div className="decode-card border border-decode-blue/30 p-4 rounded-lg mb-10 max-w-md mx-auto text-left">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="text-decode-blue">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <p className="font-bold text-decode-white">Connect Your Wallet</p>
+                  </div>
+                  <p className="text-sm text-gray-400 pl-9">Connect your wallet to start trading with the benefits of account abstraction.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Stock Marketplace Section */}
+        <section className="py-20 bg-decode-black">
+          <div className="container mx-auto px-4">
+            <StockMarketplace />
+          </div>
+        </section>
+      
+        {/* Account Abstraction Benefits Section */}
+        <section className="py-24 bg-decode-black border-t border-decode-green/20">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto text-center mb-16">
+              <div className="h-px w-12 bg-decode-green mb-6 mx-auto"></div>
+              <h2 className="decode-heading text-3xl md:text-4xl text-decode-white mb-3">
+                BENEFITS OF ACCOUNT ABSTRACTION
+              </h2>
+              <p className="text-gray-400 max-w-2xl mx-auto">Experience seamless blockchain interaction with smart contract wallets</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="decode-card p-8 rounded-lg">
+                <div className="rounded-full border border-decode-green/30 w-14 h-14 flex items-center justify-center mb-6">
+                  <svg className="w-6 h-6 text-decode-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-decode-white mb-4">
+                  Gas Fee Optimization
+                </h3>
+                <p className="text-gray-400 leading-relaxed">
+                  The platform can pay for transaction fees on your behalf, eliminating the need for you to hold HBAR just for gas.
+                </p>
+              </div>
+              
+              <div className="decode-card p-8 rounded-lg">
+                <div className="rounded-full border border-decode-green/30 w-14 h-14 flex items-center justify-center mb-6">
+                  <svg className="w-6 h-6 text-decode-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                </div>
+                <h3 className="text-xl font-bold text-decode-white mb-4">
+                  Enhanced Security
+                </h3>
+                <p className="text-gray-400 leading-relaxed">
+                  Social recovery options protect your assets if you lose access to your account. Guardians can help recover your wallet.
               </p>
             </div>
             
-            <div className="bg-white dark:bg-primary-800 p-6 rounded-xl shadow-md">
-              <div className="rounded-full bg-primary-100 dark:bg-primary-700 w-12 h-12 flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-primary-600 dark:text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-primary-900 dark:text-white mb-3">
-                Enhanced Security
-              </h3>
-              <p className="text-primary-600 dark:text-primary-400">
-                Social recovery options protect your assets if you lose access to your account. Guardians can help recover your wallet.
-              </p>
-            </div>
-            
-            <div className="bg-white dark:bg-primary-800 p-6 rounded-xl shadow-md">
-              <div className="rounded-full bg-primary-100 dark:bg-primary-700 w-12 h-12 flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-primary-600 dark:text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <div className="decode-card p-8 rounded-lg">
+              <div className="rounded-full border border-decode-green/30 w-14 h-14 flex items-center justify-center mb-6">
+                <svg className="w-6 h-6 text-decode-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-primary-900 dark:text-white mb-3">
+              <h3 className="text-xl font-bold text-decode-white mb-4">
                 Simplified Experience
               </h3>
-              <p className="text-primary-600 dark:text-primary-400">
+              <p className="text-gray-400 leading-relaxed">
                 No need to understand blockchain complexities. Trade stocks just like you would on traditional platforms.
               </p>
             </div>
           </div>
         </div>
       </section>
-    </div>
+      </div>
+    </StockProvider>
   );
-} 
+}
