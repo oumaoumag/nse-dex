@@ -27,84 +27,93 @@ const WalletConnection: React.FC = () => {
   };
 
   return (
-    <div className="p-4 bg-white dark:bg-primary-900 rounded-xl shadow-md">
-      <h3 className="text-lg font-semibold text-primary-900 dark:text-white mb-4">
-        Wallet
-      </h3>
-      
-      {error && (
-        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 rounded-md text-sm">
-          {error}
-        </div>
-      )}
-      
+    <div className="relative">
       {isConnected ? (
-        <div>
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <p className="text-sm text-primary-600 dark:text-primary-400">Account ID:</p>
-              <p className="font-medium text-primary-900 dark:text-white">
-                {accountId?.substring(0, 6)}...{accountId?.substring(accountId.length - 4)}
-              </p>
-            </div>
-            <button
-              onClick={() => setShowDetails(!showDetails)}
-              className="text-xs text-secondary-600 hover:text-secondary-700 dark:text-secondary-400 dark:hover:text-secondary-300"
+        <div className="flex flex-col">
+          <button
+            onClick={() => setShowDetails(!showDetails)}
+            className="flex items-center gap-2 text-decode-white hover:text-decode-green transition-colors px-3 py-2 rounded-md text-sm font-medium"
+          >
+            <div className="h-2 w-2 rounded-full bg-decode-green animate-pulse"></div>
+            <span>
+              {accountId?.substring(0, 6)}...{accountId?.substring(accountId.length - 4)}
+            </span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className={`h-4 w-4 transition-transform ${showDetails ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
-              {showDetails ? 'Hide Details' : 'Show Details'}
-            </button>
-          </div>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
           
           {showDetails && (
-            <div className="mb-4 p-3 bg-primary-50 dark:bg-primary-800 rounded-md text-sm">
-              <p className="mb-1">
-                <span className="text-primary-600 dark:text-primary-400">Full Account ID: </span>
-                <span className="font-medium text-primary-900 dark:text-white break-all">{accountId}</span>
-              </p>
-              {smartWalletId && (
-                <p className="mb-1">
-                  <span className="text-primary-600 dark:text-primary-400">Smart Wallet ID: </span>
-                  <span className="font-medium text-primary-900 dark:text-white break-all">{smartWalletId}</span>
-                </p>
+            <div className="absolute right-0 top-full mt-2 w-72 decode-card p-4 z-50">
+              {error && (
+                <div className="mb-4 p-3 bg-red-900/30 border border-red-500/30 text-red-300 rounded text-sm">
+                  {error}
+                </div>
               )}
-              <p>
-                <span className="text-primary-600 dark:text-primary-400">Balance: </span>
-                <span className="font-medium text-primary-900 dark:text-white">{balance || '0'} HBAR</span>
-              </p>
+              
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Account ID</p>
+                  <p className="font-medium text-decode-white text-sm break-all">{accountId}</p>
+                </div>
+                
+                {smartWalletId && (
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">Smart Wallet ID</p>
+                    <p className="font-medium text-decode-white text-sm break-all">{smartWalletId}</p>
+                  </div>
+                )}
+                
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Balance</p>
+                  <p className="font-medium text-decode-white text-sm">{balance || '0'} HBAR</p>
+                </div>
+                
+                {!smartWalletId && (
+                  <button
+                    onClick={handleCreateSmartWallet}
+                    disabled={isLoading}
+                    className="decode-button w-full text-sm mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? 'Creating...' : 'Create Smart Wallet'}
+                  </button>
+                )}
+                
+                <button
+                  onClick={disconnectWallet}
+                  className="decode-button-secondary w-full text-sm"
+                >
+                  Disconnect
+                </button>
+              </div>
             </div>
           )}
-
-          {!smartWalletId && (
-            <button
-              onClick={handleCreateSmartWallet}
-              disabled={isLoading}
-              className="w-full py-2 px-4 rounded-md bg-secondary-600 hover:bg-secondary-700 text-white font-medium text-sm mb-3 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isLoading ? 'Creating...' : 'Create Smart Wallet'}
-            </button>
-          )}
-          
-          <button
-            onClick={disconnectWallet}
-            className="w-full py-2 px-4 rounded-md bg-primary-100 hover:bg-primary-200 dark:bg-primary-800 dark:hover:bg-primary-700 text-primary-900 dark:text-primary-200 font-medium text-sm transition-colors"
-          >
-            Disconnect
-          </button>
         </div>
       ) : (
         <button
           onClick={connectWallet}
           disabled={isLoading}
-          className="w-full py-2 px-4 rounded-md bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+          className="decode-button text-sm whitespace-nowrap"
         >
           {isLoading ? 'Connecting...' : 'Connect Wallet'}
         </button>
       )}
       
       {isConnected && smartWalletId && (
-        <div className="mt-4 text-xs text-primary-600 dark:text-primary-400">
-          <p className="mb-1">✓ Account Abstraction Enabled</p>
-          <p>Transactions will be executed through your smart contract wallet for enhanced security and usability.</p>
+        <div className="absolute right-0 top-full mt-2 p-3 decode-card border border-decode-green/30 text-xs rounded-md z-40">
+          <div className="flex items-center gap-2 mb-1 text-decode-green">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <p className="font-medium">Account Abstraction Enabled</p>
+          </div>
+          <p className="text-gray-400">Transactions will be executed through your smart contract wallet for enhanced security and usability.</p>
         </div>
       )}
     </div>
