@@ -3,8 +3,15 @@
 @tailwind utilities;
 
 :root {
+  /* Safaricom Decode inspired color scheme */
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #000000;
+  --safaricom-green: #00BD5F;
+  --safaricom-dark: #000000;
+  --safaricom-light: #ffffff;
+  --safaricom-grey: #f5f5f5;
+  --safaricom-accent: #4F6EF7;
+  
   --border: 213 10% 90%;
   --ring: 213 10% 80%;
 }
@@ -15,13 +22,12 @@
   --font-sans: var(--font-inter);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a102d;
-    --foreground: #ededed;
-    --border: 213 10% 30%;
-    --ring: 213 10% 40%;
-  }
+/* Always use dark theme to match Safaricom Decode */
+:root {
+  --background: #000000;
+  --foreground: #ffffff;
+  --border: 213 10% 30%;
+  --ring: 213 10% 40%;
 }
 
 body {
@@ -52,4 +58,84 @@ body {
 .animate-gradient {
   background-size: 200% 200%;
   animation: gradient-shift 4s ease infinite;
+}
+
+/* Safaricom Decode-inspired styles */
+.decode-gradient {
+  background: linear-gradient(90deg, var(--safaricom-green), var(--safaricom-accent));
+}
+
+.decode-heading {
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+
+.decode-card {
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.decode-card:hover {
+  border-color: var(--safaricom-green);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0, 189, 95, 0.1);
+}
+
+.decode-button {
+  background-color: var(--safaricom-green);
+  color: #000000;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.decode-button:hover {
+  background-color: #00a954;
+  transform: translateY(-1px);
+}
+
+.decode-button-secondary {
+  background-color: transparent;
+  color: var(--safaricom-green);
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  border: 1px solid var(--safaricom-green);
+  cursor: pointer;
+}
+
+.decode-button-secondary:hover {
+  background-color: rgba(0, 189, 95, 0.1);
+}
+
+/* Modern section styling */
+.decode-section {
+  padding: 6rem 0;
+  position: relative;
+}
+
+/* Grid layout for cards */
+.decode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 2rem;
+}
+
+/* Responsive text sizing */
+@media (max-width: 768px) {
+  .decode-heading {
+    font-size: calc(1.5rem + 1vw);
+  }
+  
+  .decode-section {
+    padding: 3rem 0;
+  }
 }
