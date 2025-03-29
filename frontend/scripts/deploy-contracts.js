@@ -12,33 +12,15 @@ const {
 const fs = require("fs");
 require('dotenv').config({ path: './.env.local' });
 
-// Define all contracts to deploy with their configurations
-const contractConfigs = [
-  {
-    name: "TajiriWallet",
-    bytecodeFile: "../contracts/TajiriWallet.bin",
-    envVarName: "NEXT_PUBLIC_WALLET_CONTRACT_ID",
-    constructorParams: (operatorId) => new ContractFunctionParameters()
-      .addAddress(operatorId.toSolidityAddress())
-  },
-  {
-    name: "TajiriWalletFactory",
-    bytecodeFile: "../contracts/TajiriWalletFactory.bin",
-    envVarName: "NEXT_PUBLIC_FACTORY_CONTRACT_ID",
-    constructorParams: (operatorId) => new ContractFunctionParameters()
-      .addAddress(operatorId.toSolidityAddress())
-  },
-  // Add additional contracts here with their configurations
-  // Example:
-  // {
-  //   name: "YourContractName",
-  //   bytecodeFile: "../contracts/YourContract.bin",
-  //   envVarName: "NEXT_PUBLIC_YOUR_CONTRACT_ID",
-  //   constructorParams: (operatorId) => new ContractFunctionParameters()
-  //     .addAddress(operatorId.toSolidityAddress())
-  //     .addUint256(someValue)
-  //     // Add other parameters as needed
-  // },
+const contractsToDeploy = [
+  { name: "TajiriWallet", file: "../contracts/TajiriWallet.bin", constructor: true, params: ["address"] },
+  { name: "TajiriWalletFactory", file: "../contracts/TajiriWalletFactory.bin", constructor: true, params: [] },
+  { name: "ManageStock", file: "../contracts/manageStock.bin", constructor: true, params: ["address"] },
+  { name: "MintStock", file: "../contracts/mintStock.bin", constructor: true, params: ["address"] },
+  { name: "RedeemStock", file: "../contracts/redeemStock.bin", constructor: true, params: ["address"] },
+  { name: "PostOfferOnP2P", file: "../contracts/postOfferOnP2P.bin", constructor: true, params: ["address"] },
+  { name: "DoP2PTrade", file: "../contracts/doP2PTrade.bin", constructor: true, params: ["address"] },
+  { name: "SafaricomStock", file: "../contracts/safaricomStock.bin", constructor: false, params: [] }
 ];
 
 async function deployContracts() {
@@ -90,23 +72,21 @@ async function deployContracts() {
   await new Promise(resolve => setTimeout(resolve, 2000));
   
   try {
-    // Container for all deployed contract IDs
     const deployedContracts = {};
 
-    // Deploy each contract based on configuration
-    for (const config of contractConfigs) {
-      console.log(`\n=== Deploying ${config.name} Contract ===`);
+    for (const contract of contractsToDeploy) {
+      console.log(`\n=== Deploying ${contract.name} Contract ===`);
 
     // Check if the bytecode file exists
-      if (!fs.existsSync(config.bytecodeFile)) {
-        throw new Error(`Bytecode file not found: ${config.bytecodeFile}`);
+      if (!fs.existsSync(contract.file)) {
+        throw new Error(`Bytecode file not found: ${contract.file}`);
       }
 
-      const bytecode = fs.readFileSync(config.bytecodeFile);
-
+      const bytecode = fs.readFileSync(contract.file);
       console.log(`Bytecode size: ${bytecode.length} bytes`);
+
       if (bytecode.length === 0) {
-        throw new Error(`Empty bytecode file for ${config.name}`);
+        throw new Error(`Empty bytecode file for ${contract.name}`);
       }
 
       let maxRetries = 3;
@@ -120,8 +100,8 @@ async function deployContracts() {
           console.log(`\nAttempt ${attempt}/${maxRetries} to create file and deploy contract...`);
 
           // Step 1: Create a file with the bytecode using the chunking helper
-          console.log(`Creating ${config.name} bytecode file...`);
-          const bytecodeFileId = await createFileWithChunks(client, bytecode, `${config.name} bytecode file`);
+          console.log("Creating bytecode file...");
+          const bytecodeFileId = await createFileWithChunks(client, bytecode, contract.name);
           console.log(`- The bytecode file ID is: ${bytecodeFileId}`);
 
           // Add delay between transactions
@@ -132,11 +112,18 @@ async function deployContracts() {
           console.log("\nCreating contract transaction...");
           const contractCreateTx = new ContractCreateTransaction()
             .setBytecodeFileId(bytecodeFileId)
-            .setGas(8000000) // Increased gas limit
-            .setMaxTransactionFee(200_000_000) // 2 HBAR
-            .setConstructorParameters(
-              config.constructorParams(operatorId)
-            );
+            .setGas(8000000)
+            .setMaxTransactionFee(200_000_000);
+
+          if (contract.constructor) {
+            const params = new ContractFunctionParameters();
+
+            // Add parameters based on the contract requirements
+            if (contract.params.includes("address")) {
+              params.addAddress(operatorId.toSolidityAddress());
+              contractCreateTx.setConstructorParameters(params);
+            }
+          }
 
           console.log("Executing contract creation transaction...");
           const contractCreateSubmit = await contractCreateTx.execute(client);
@@ -144,11 +131,9 @@ async function deployContracts() {
           console.log("Contract creation submitted, waiting for receipt...");
           const contractReceipt = await contractCreateSubmit.getReceipt(client);
           contractId = contractReceipt.contractId;
-          console.log(`${config.name} contract deployed with ID: ${contractId}`);
+          console.log(`${contract.name} contract deployed with ID: ${contractId}`);
 
-          // Store the deployed contract ID
-          deployedContracts[config.name] = contractId.toString();
-
+          deployedContracts[contract.name] = contractId.toString();
           success = true;
         } catch (err) {
           console.error(`\nAttempt ${attempt} failed with error:`, err);
@@ -171,13 +156,7 @@ async function deployContracts() {
       }
 
       if (!success) {
-        throw new Error(`Failed to deploy ${config.name} after multiple attempts`);
-      }
-
-      // Add delay between contract deployments
-      if (contractConfigs.indexOf(config) < contractConfigs.length - 1) {
-        console.log("Waiting 15 seconds before deploying next contract...");
-        await new Promise(resolve => setTimeout(resolve, 15000));
+        throw new Error(`Failed to deploy ${contract.name} after multiple attempts`);
       }
     }
 
@@ -190,30 +169,38 @@ async function deployContracts() {
       timestamp: new Date().toISOString()
     };
 
-    fs.writeFileSync(
-      './contract-addresses.json',
-      JSON.stringify(contractData, null, 2)
-    );
+    fs.writeFileSync('./contract-addresses.json', JSON.stringify(contractData, null, 2));
     console.log("Contract addresses saved to contract-addresses.json");
     
     // Update .env.local file
-    const envPath = './frontend/.env.local';
-    let envContent = fs.readFileSync(envPath, 'utf8');
+    const envPath = './.env.local';
+    const envContent = fs.readFileSync(envPath, 'utf8');
+
+    // Create a mapping of contract names to environment variable names
+    const contractEnvMapping = {
+      'TajiriWallet': 'NEXT_PUBLIC_WALLET_CONTRACT_ID',
+      'TajiriWalletFactory': 'NEXT_PUBLIC_FACTORY_CONTRACT_ID',
+      'ManageStock': 'NEXT_PUBLIC_MANAGE_STOCK_CONTRACT_ID',
+      'MintStock': 'NEXT_PUBLIC_MINT_STOCK_CONTRACT_ID',
+      'RedeemStock': 'NEXT_PUBLIC_REDEEM_STOCK_CONTRACT_ID',
+      'PostOfferOnP2P': 'NEXT_PUBLIC_P2P_OFFERS_CONTRACT_ID',
+      'DoP2PTrade': 'NEXT_PUBLIC_P2P_TRADE_CONTRACT_ID',
+      'SafaricomStock': 'NEXT_PUBLIC_SAFARICOM_STOCK_CONTRACT_ID'
+    };
+
+    let updatedEnvContent = envContent;
     
-    // Update each contract address in the .env file
-    for (const config of contractConfigs) {
-      const contractId = deployedContracts[config.name];
-      if (contractId) {
-        const regex = new RegExp(`^#?${config.envVarName}=.*$`, 'm');
-        if (envContent.match(regex)) {
-          envContent = envContent.replace(regex, `${config.envVarName}=${contractId}`);
-        } else {
-          envContent += `\n${config.envVarName}=${contractId}`;
-        }
+    // Update each environment variable
+    for (const [contractName, envVarName] of Object.entries(contractEnvMapping)) {
+      if (deployedContracts[contractName]) {
+        updatedEnvContent = updatedEnvContent.replace(
+          new RegExp(`^#?${envVarName}=.*$`, 'm'),
+          `${envVarName}=${deployedContracts[contractName]}`
+        );
       }
     }
 
-    fs.writeFileSync(envPath, envContent);
+    fs.writeFileSync(envPath, updatedEnvContent);
     console.log("Contract addresses added to .env.local file");
 
     console.log("\n✅ Deployment completed successfully!");
