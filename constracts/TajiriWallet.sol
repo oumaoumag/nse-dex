@@ -21,7 +21,10 @@ contract TajiriWallet {
 
     mapping(bytes32 => bool) public executedTxs;
 
-    address constant HTS_PRECOMPILE = address(0x167);
+    // Hedera service precompile addresses
+address constant HTS_PRECOMPILE = address(0x167); // Hedera Token Service
+address constant EXCHANGE_RATE_PRECOMPILE = address(0x168); // Exchange Rate Service
+address constant HBAR_TRANSFER_PRECOMPILE = address(0x169); // HBAR Transfer Service
 
     event Executed(address indexed target, uint256 value, bytes data, bytes response);
     event BatchExecuted(address[] targets, uint256[] values, bytes[] data);
@@ -308,10 +311,31 @@ contract TajiriWallet {
     /// @notice Associate an HTS token with the wallet
     /// @param tokenId The HTS token address to associate
     function associateToken(address tokenId) external onlyOwner {
-        (bool success,) = HTS_PRECOMPILE.call(
+        (bool success, bytes memory result) = HTS_PRECOMPILE.call(
             abi.encodeWithSignature("associateToken(address,address)", address(this), tokenId)
         );
-        require(success, "Token association failed");
+        // Better error handling with response code
+        if (!success) {
+            revert("Token association call failed");
+        }
+        int32 responseCode = abi.decode(result, (int32));
+        require(responseCode == 22, string(abi.encodePacked("Token association failed with code: ", responseCode)));
+    }
+    
+    /// @notice Check token balance
+    /// @param tokenId The HTS token address
+    /// @return The token balance
+    function getTokenBalance(address tokenId) external view returns (uint256) {
+        (bool success, bytes memory result) = HTS_PRECOMPILE.staticcall(
+            abi.encodeWithSignature(
+                "balanceOf(address,address)",
+                tokenId,
+                address(this)
+            )
+        );
+        require(success, "Token balance query failed");
+        int64 balance = abi.decode(result, (int64));
+        return uint256(uint64(balance));
     }
 
     /// @notice Transfer an HTS token
@@ -322,7 +346,7 @@ contract TajiriWallet {
         external 
         onlyOwner 
     {
-        (bool success,) = HTS_PRECOMPILE.call(
+        (bool success, bytes memory result) = HTS_PRECOMPILE.call(
             abi.encodeWithSignature(
                 "transferToken(address,address,address,int64)",
                 tokenId,
@@ -331,7 +355,12 @@ contract TajiriWallet {
                 int64(uint64(amount))
             )
         );
-        require(success, "Token transfer failed");
+        // Better error handling with response code
+        if (!success) {
+            revert("Token transfer call failed");
+        }
+        int32 responseCode = abi.decode(result, (int32));
+        require(responseCode == 22, string(abi.encodePacked("Token transfer failed with code: ", responseCode)));
     }
     
     /// @notice Recover the signer from a signature
@@ -359,6 +388,16 @@ contract TajiriWallet {
         address signer = ecrecover(messageHash, v, r, s);
         require(signer != address(0), "Invalid signer");
         return signer;
+    }
+    
+    /// @notice Get current HBAR exchange rate to USD cents
+    /// @return Rate in tiny USD cents (1/100 of a cent)
+    function getHbarExchangeRate() public view returns (int64) {
+        (bool success, bytes memory result) = EXCHANGE_RATE_PRECOMPILE.staticcall(
+            abi.encodeWithSignature("hbarToTinyCents()")
+        );
+        require(success, "Exchange rate query failed");
+        return abi.decode(result, (int64));
     }
 
     /// @notice Modifier to restrict access to the owner
