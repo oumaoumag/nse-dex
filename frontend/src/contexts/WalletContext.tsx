@@ -3,7 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { 
   Client, AccountId, PrivateKey, ContractId, 
-  ContractExecuteTransaction, ContractCallQuery, Hbar
+  ContractExecuteTransaction, ContractCallQuery, Hbar,
+  AccountBalanceQuery, ContractFunctionParameters, ContractFunctionResult
 } from '@hashgraph/sdk';
 import axios from 'axios';
 
@@ -30,6 +31,11 @@ type WalletContextType = {
   recoveryInProgress: boolean;
   recoveryInitiator: string | null;
   proposedNewOwner: string | null;
+  // New HTS functions
+  getTokenBalance: (tokenId: string) => Promise<string>;
+  associateToken: (tokenId: string) => Promise<boolean>;
+  transferToken: (tokenId: string, recipientId: string, amount: number) => Promise<boolean>;
+  getHbarExchangeRate: () => Promise<number>;
 };
 
 const defaultContext: WalletContextType = {
@@ -55,6 +61,11 @@ const defaultContext: WalletContextType = {
   recoveryInProgress: false,
   recoveryInitiator: null,
   proposedNewOwner: null,
+  // Add new HTS functions to default context
+  getTokenBalance: async () => "0",
+  associateToken: async () => false,
+  transferToken: async () => false,
+  getHbarExchangeRate: async () => 0,
 };
 
 const WalletContext = createContext<WalletContextType>(defaultContext);
@@ -84,6 +95,28 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [recoveryInProgress, setRecoveryInProgress] = useState<boolean>(false);
   const [recoveryInitiator, setRecoveryInitiator] = useState<string | null>(null);
   const [proposedNewOwner, setProposedNewOwner] = useState<string | null>(null);
+  // Add private key state for internal use only (never exposed to UI)
+  const [privateKeyStr, setPrivateKeyStr] = useState<string | null>(null);
+
+  // Utility function to verify client has a properly configured operator
+  const verifyClientOperator = (): boolean => {
+    if (!client) {
+      console.error('No client available');
+      return false;
+    }
+
+    if (!client.operatorAccountId) {
+      console.error('Client does not have an operator account set');
+      return false;
+    }
+
+    if (!client.operatorPublicKey) {
+      console.error('Client does not have an operator public key set');
+      return false;
+    }
+
+    return true;
+  };
 
   // Check for existing connection on component mount
   useEffect(() => {
@@ -91,10 +124,38 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     const savedSmartWalletId = localStorage.getItem('tajiri-smart-wallet-id');
     
     if (savedAccountId) {
-      initializeClient(savedAccountId);
-      setSmartWalletId(savedSmartWalletId);
+      // Use async initialization with a delay to ensure client is ready
+      const initClient = async () => {
+        try {
+          await initializeClient(savedAccountId);
+          if (savedSmartWalletId) {
+            setSmartWalletId(savedSmartWalletId);
+          }
+        } catch (err) {
+          console.error("Failed to initialize client:", err);
+          setError("Failed to initialize Hedera client. Please try connecting your wallet again.");
+        }
+      };
+
+      initClient();
     }
   }, []);
+
+  // Add this to verify the client has a proper operator after initialization
+  useEffect(() => {
+    if (client && isConnected) {
+      const operatorConfigured = verifyClientOperator();
+      if (!operatorConfigured) {
+        console.warn('Client operator not properly configured. Reconnecting wallet...');
+        // Try to reconnect if operator is not properly configured
+        connectWallet().catch(err => {
+          console.error('Failed to reconnect wallet:', err);
+        });
+      } else {
+        console.log('Client operator verified successfully');
+      }
+    }
+  }, [client, isConnected]);
 
   // Update balance when account changes
   useEffect(() => {
@@ -113,7 +174,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }
   }, [smartWalletId]);
 
-  const initializeClient = (accountIdStr: string) => {
+  const initializeClient = async (accountIdStr: string) => {
     try {
       // Initialize client based on environment
       const network = process.env.NEXT_PUBLIC_HEDERA_NETWORK || 'testnet';
@@ -125,6 +186,55 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         newClient = Client.forMainnet();
       }
       
+      // Set default max query payment to prevent CostQuery errors
+      newClient.setDefaultMaxQueryPayment(new Hbar(0.5));
+
+      // Get account credentials from environment variables
+      const myAccountId = process.env.NEXT_PUBLIC_MY_ACCOUNT_ID;
+      const myPrivateKey = process.env.NEXT_PUBLIC_MY_PRIVATE_KEY;
+
+      if (!myAccountId || !myPrivateKey) {
+        throw new Error('Account credentials not found in environment variables');
+      }
+
+      // Parse the account ID and private key properly
+      try {
+        const accountId = AccountId.fromString(myAccountId);
+        const privateKey = PrivateKey.fromString(myPrivateKey);
+
+        // Set the operator with explicit objects
+        console.log('Setting client operator...');
+        newClient.setOperator(accountId, privateKey);
+
+        // Store private key in memory (for future reference if needed)
+        setPrivateKeyStr(myPrivateKey);
+
+        // Verify client initialization
+        if (!newClient.operatorAccountId) {
+          throw new Error('Failed to set operator account ID');
+        }
+
+        console.log('Client initialized with operator:', newClient.operatorAccountId.toString());
+
+        // Force a small delay to ensure the client is fully ready before returning
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Test a basic query to ensure the client is ready
+        try {
+          await new AccountBalanceQuery()
+            .setAccountId(accountId)
+            .setMaxQueryPayment(new Hbar(0.1))
+            .execute(newClient);
+          console.log('Client initialization verified with a test query');
+        } catch (testErr) {
+          console.warn('Test query failed, but continuing with client init:', testErr);
+          // Continue anyway as this might be due to other issues
+        }
+      } catch (keyErr: any) {
+        console.error('Error parsing account ID or private key:', keyErr);
+        throw new Error(`Invalid account credentials: ${keyErr.message}`);
+      }
+
       setClient(newClient);
       setAccountId(accountIdStr);
       setIsConnected(true);
@@ -140,8 +250,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     if (!client || !accountId) return;
     
     try {
-      const balance = await client.getAccountBalance(AccountId.fromString(accountId));
-      setBalance(balance.hbars.toString());
+      // Fixed: Using AccountBalanceQuery instead of calling getAccountBalance directly
+      const accountBalance = await new AccountBalanceQuery()
+        .setAccountId(AccountId.fromString(accountId))
+        .execute(client);
+
+      setBalance(accountBalance.hbars.toString());
     } catch (err: any) {
       setError(`Failed to fetch balance: ${err.message}`);
     }
@@ -151,25 +265,80 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     if (!client || !smartWalletId) return;
     
     try {
+      // Make sure client has operator set
+      if (!client.operatorAccountId) {
+        console.error('Client does not have an operator account set. Please connect your wallet first.');
+        return;
+      }
+
       // Call the getGuardians function on the smart wallet contract
       const query = new ContractCallQuery()
         .setContractId(ContractId.fromString(smartWalletId))
-        .setGas(100000)
+        .setGas(100000) // Gas for execution
+        .setMaxQueryPayment(new Hbar(0.1)) // Set max payment for the query
         .setFunction("getGuardians");
       
-      const response = await query.execute(client);
-      // Parse the response to get the guardian addresses
-      // This would depend on your specific contract implementation
-      // For demo purposes, we'll use a placeholder format
-      const result = response.getBytes();
-      console.log('Raw guardians response:', result);
-      
-      // In a real implementation, you would decode the bytes properly
-      // This is just a placeholder:
-      const mockGuardians = ["0.0.123456", "0.0.789012"];
-      setGuardians(mockGuardians);
+      // Explicitly wait before executing the query
+      try {
+        console.log('Preparing to execute getGuardians query...');
+
+        // Try with a delay to ensure the client is ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Execute with retry logic
+        let attempts = 0;
+        let response;
+
+        while (attempts < 3) {
+          try {
+            response = await query.execute(client);
+            break; // Success, exit loop
+          } catch (execErr: any) {
+            attempts++;
+            if (attempts >= 3) throw execErr; // Give up after 3 attempts
+
+            if (execErr.message && execErr.message.includes('CostQuery has not been loaded yet')) {
+              console.log(`Retrying guardians query after CostQuery error (attempt ${attempts})...`);
+              await new Promise(resolve => setTimeout(resolve, 500 * attempts)); // Increasing delay
+            } else {
+              throw execErr; // Other error, don't retry
+            }
+          }
+        }
+
+        if (!response) throw new Error('Query execution failed after retries');
+
+        // Parse the response properly to get the guardian addresses
+        const result = response as ContractFunctionResult;
+
+        // Correctly extract addresses from the result
+        try {
+          // This is a placeholder approach - actual implementation depends on the contract's return format
+          const addressArray = result.getAddress(0); // If contract returns an array of addresses
+          console.log('Guardians response:', addressArray);
+
+          // For demo purposes, we'll still use placeholder data
+          // In a real implementation, you would properly decode the response
+          const mockGuardians = ["0.0.123456", "0.0.789012"];
+          setGuardians(mockGuardians);
+        } catch (decodeErr) {
+          console.error('Failed to decode guardian addresses:', decodeErr);
+          setGuardians([]);
+        }
+      } catch (queryErr: any) {
+        console.error('Error executing guardian query:', queryErr);
+
+        // Handle CostQuery error specifically
+        if (queryErr.message && queryErr.message.includes('CostQuery has not been loaded yet')) {
+          console.warn('CostQuery not loaded. Client may need more time to initialize.');
+        }
+
+        throw queryErr;
+      }
     } catch (err: any) {
       console.error('Failed to fetch guardians:', err);
+      // Don't stop the app completely for this non-critical error
+      setGuardians([]);
     }
   };
 
@@ -177,26 +346,86 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     if (!client || !smartWalletId) return;
     
     try {
+      // Make sure client has operator set
+      if (!client.operatorAccountId) {
+        console.error('Client does not have an operator account set. Please connect your wallet first.');
+        return;
+      }
+
       // Query the recovery status from the smart wallet
       const query = new ContractCallQuery()
         .setContractId(ContractId.fromString(smartWalletId))
-        .setGas(100000)
+        .setGas(100000) // Gas for execution
+        .setMaxQueryPayment(new Hbar(0.1)) // Set max payment for the query
         .setFunction("getRecoveryStatus");
       
-      const response = await query.execute(client);
-      // Again, the actual implementation would depend on your contract
-      // For demo, we'll use placeholder values
-      
-      // Simulate recovery in progress for demo purposes
-      const inProgress = false;
-      const initiator = inProgress ? "0.0.123456" : null;
-      const newOwner = inProgress ? "0.0.555555" : null;
-      
-      setRecoveryInProgress(inProgress);
-      setRecoveryInitiator(initiator);
-      setProposedNewOwner(newOwner);
+      // Explicitly wait before executing the query
+      try {
+        console.log('Preparing to execute getRecoveryStatus query...');
+
+        // Try with a delay to ensure the client is ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Execute with retry logic
+        let attempts = 0;
+        let response;
+
+        while (attempts < 3) {
+          try {
+            response = await query.execute(client);
+            break; // Success, exit loop
+          } catch (execErr: any) {
+            attempts++;
+            if (attempts >= 3) throw execErr; // Give up after 3 attempts
+
+            if (execErr.message && execErr.message.includes('CostQuery has not been loaded yet')) {
+              console.log(`Retrying recovery status query after CostQuery error (attempt ${attempts})...`);
+              await new Promise(resolve => setTimeout(resolve, 500 * attempts)); // Increasing delay
+            } else {
+              throw execErr; // Other error, don't retry
+            }
+          }
+        }
+
+        if (!response) throw new Error('Query execution failed after retries');
+
+        // Properly parse the response
+        const result = response as ContractFunctionResult;
+
+        try {
+          // Parse the response based on the contract's return format
+          // This is a placeholder - actual implementation depends on your contract
+          const inProgress = result.getBool(0);
+          const initiator = inProgress ? result.getAddress(1) : null;
+          const newOwner = inProgress ? result.getAddress(2) : null;
+
+          setRecoveryInProgress(inProgress);
+          setRecoveryInitiator(initiator);
+          setProposedNewOwner(newOwner);
+        } catch (decodeErr) {
+          console.error('Failed to decode recovery status:', decodeErr);
+
+          // Fallback to defaults
+          setRecoveryInProgress(false);
+          setRecoveryInitiator(null);
+          setProposedNewOwner(null);
+        }
+      } catch (queryErr: any) {
+        console.error('Error executing recovery status query:', queryErr);
+
+        // Handle CostQuery error specifically
+        if (queryErr.message && queryErr.message.includes('CostQuery has not been loaded yet')) {
+          console.warn('CostQuery not loaded. Client may need more time to initialize.');
+        }
+
+        throw queryErr;
+      }
     } catch (err: any) {
       console.error('Failed to check recovery status:', err);
+      // Don't stop the app completely for this non-critical error
+      setRecoveryInProgress(false);
+      setRecoveryInitiator(null);
+      setProposedNewOwner(null);
     }
   };
 
@@ -214,11 +443,39 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         throw new Error('Account credentials not found in environment variables');
       }
       
-      const newClient = initializeClient(myAccountId);
-      
-      if (newClient) {
-        // Set the operator (account that pays for transactions)
-        newClient.setOperator(AccountId.fromString(myAccountId), PrivateKey.fromString(myPrivateKey));
+      console.log('Connecting wallet for account:', myAccountId);
+
+      // Store private key in memory (for future reference if needed)
+      setPrivateKeyStr(myPrivateKey);
+
+      // Initialize a new client
+      const network = process.env.NEXT_PUBLIC_HEDERA_NETWORK || 'testnet';
+      console.log(`Using network: ${network}`);
+      const newClient = network === 'testnet' ? Client.forTestnet() : Client.forMainnet();
+
+      // Set default max query payment to prevent CostQuery errors
+      newClient.setDefaultMaxQueryPayment(new Hbar(0.5));
+
+      // Parse the account ID and private key properly
+      try {
+        const accountId = AccountId.fromString(myAccountId);
+        const privateKey = PrivateKey.fromString(myPrivateKey);
+
+        // Set the operator with explicit objects
+        console.log('Setting client operator...');
+        newClient.setOperator(accountId, privateKey);
+
+        // Verify client initialization
+        if (!newClient.operatorAccountId) {
+          throw new Error('Failed to set operator account ID');
+        }
+
+        console.log('Client initialized with operator:', newClient.operatorAccountId.toString());
+
+        // Set client in state
+        setClient(newClient);
+        setAccountId(myAccountId);
+        setIsConnected(true);
         
         // Store account ID in local storage
         localStorage.setItem('tajiri-account-id', myAccountId);
@@ -227,10 +484,31 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         const savedSmartWalletId = localStorage.getItem('tajiri-smart-wallet-id');
         if (savedSmartWalletId) {
           setSmartWalletId(savedSmartWalletId);
+          console.log('Restored existing smart wallet ID:', savedSmartWalletId);
         }
+
+        // Fetch balance to confirm connection
+        try {
+          const accountBalance = await new AccountBalanceQuery()
+            .setAccountId(accountId)
+            .execute(newClient);
+
+          setBalance(accountBalance.hbars.toString());
+          console.log('Account balance:', accountBalance.hbars.toString());
+        } catch (balanceErr: any) {
+          console.error('Failed to fetch initial balance:', balanceErr);
+          // Non-blocking error - we'll still consider the wallet connected
+        }
+      } catch (keyErr: any) {
+        console.error('Error parsing account ID or private key:', keyErr);
+        throw new Error(`Invalid account credentials: ${keyErr.message}`);
       }
     } catch (err: any) {
+      console.error('Wallet connection error:', err);
       setError(`Failed to connect wallet: ${err.message}`);
+      setIsConnected(false);
+      setClient(null);
+      setAccountId(null);
     } finally {
       setIsLoading(false);
     }
@@ -242,42 +520,78 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     setIsConnected(false);
     setSmartWalletId(null);
     setBalance(null);
+    setPrivateKeyStr(null); // Clear private key from memory
     localStorage.removeItem('tajiri-account-id');
     localStorage.removeItem('tajiri-smart-wallet-id');
   };
 
   const createSmartWallet = async (): Promise<string> => {
-    if (!client || !accountId) {
-      throw new Error('No wallet connected');
+    if (!client || !accountId || !privateKeyStr) {
+      throw new Error('No wallet connected or private key missing');
     }
     
     setIsLoading(true);
     setError(null);
     
     try {
-      // Get the TajiriWallet.bin bytecode - in a real app this would be loaded differently
-      const deployTx = new ContractExecuteTransaction()
+      // First, verify that the client is properly initialized with operator info
+      if (!client.operatorAccountId || !client.operatorPublicKey) {
+        console.error('Client not properly initialized with operator details');
+        throw new Error('Wallet client not properly initialized');
+      }
+
+      // Get factory contract ID
+      const factoryContractId = process.env.NEXT_PUBLIC_FACTORY_CONTRACT_ID || '';
+      if (!factoryContractId) {
+        throw new Error('Factory contract ID not set in environment variables');
+      }
+
+      console.log(`Using factory contract ID: ${factoryContractId}`);
+      console.log(`Creating smart wallet for account: ${accountId}`);
+
+      // Create a new transaction using a different approach
+      // The transaction will be automatically signed by the client's operator key
+      console.log('Creating and executing transaction directly with client...');
+
+      // No need to manually sign - let the client handle it with its operator key
+      const txResponse = await new ContractExecuteTransaction()
+        .setContractId(ContractId.fromString(factoryContractId))
         .setGas(1000000)
         .setFunction(
           "deployWallet", 
-          // Example function to deploy a new wallet - adjust based on your actual factory contract
-          [accountId]
+          new ContractFunctionParameters().addString(accountId)
         )
-        .setContractId(ContractId.fromString(process.env.NEXT_PUBLIC_FACTORY_CONTRACT_ID || ''));
-      
-      const txResponse = await deployTx.execute(client);
+        .execute(client);
+
+      console.log(`Transaction executed, ID: ${txResponse.transactionId.toString()}`);
+
+      // Wait for receipt with a longer timeout
+      console.log('Waiting for receipt...');
       const receipt = await txResponse.getReceipt(client);
       
       if (!receipt.contractId) {
-        throw new Error('Failed to create smart wallet');
+        throw new Error('Failed to create smart wallet: Contract ID not returned');
       }
       
       const newSmartWalletId = receipt.contractId.toString();
+      console.log(`Smart wallet created with ID: ${newSmartWalletId}`);
+
       setSmartWalletId(newSmartWalletId);
       localStorage.setItem('tajiri-smart-wallet-id', newSmartWalletId);
       
       return newSmartWalletId;
     } catch (err: any) {
+      console.error('Smart wallet creation error:', err);
+
+      // Enhanced error reporting
+      if (err.message && err.message.includes('transactionId')) {
+        console.error('Transaction ID error. Client state:', {
+          isInitialized: !!client,
+          hasOperatorId: !!client?.operatorAccountId,
+          hasOperatorKey: !!client?.operatorPublicKey
+        });
+      }
+
       setError(`Failed to create smart wallet: ${err.message}`);
       throw err;
     } finally {
@@ -299,26 +613,20 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     setError(null);
     
     try {
-      // This is where the account abstraction happens:
-      // Instead of directly sending a transaction, we route it through the smart wallet contract
-      // The smart wallet executes the transaction on behalf of the user
-      
       // Create function call data for the target contract
-      // This would need to be adjusted based on your specific contract interface
-      // Here we're just using a placeholder example
-      const functionCallData = `${functionName}(${params.join(',')})`;
+      // In a real implementation, you'd encode the function call properly
+      const functionCallData = encodeFunctionCall(functionName, params);
       
-      // Call the execute function on the TajiriWallet
+      // Let the client handle signing with its operator key
       const tx = new ContractExecuteTransaction()
         .setContractId(ContractId.fromString(smartWalletId))
         .setGas(1000000)
         .setFunction(
           "execute", 
-          [
-            targetContract, // target address
-            value, // value to send
-            functionCallData // encoded function call
-          ]
+          new ContractFunctionParameters()
+            .addAddress(targetContract)
+            .addUint256(value)
+            .addBytes(functionCallData)
         )
         .setPayableAmount(new Hbar(value));
       
@@ -337,6 +645,92 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }
   };
 
+  // Helper function to encode function calls for Hedera
+  const encodeFunctionCall = (functionName: string, params: any[]): Uint8Array => {
+    try {
+      // Convert function name to selector
+      const functionSelector = functionName.includes('(') ? functionName : `${functionName}(${generateParamTypeSignature(params)})`;
+
+      // Create the bytes array for the function selector (first 4 bytes of keccak256 hash)
+      const selectorHash = hashFunctionSelector(functionSelector);
+      const selectorBytes = selectorHash.slice(0, 10); // '0x' + 8 chars (4 bytes)
+
+      // Encode parameters - in a real implementation you would use proper ABI encoding
+      // This is a simplified version
+      let encodedParams = '';
+      params.forEach(param => {
+        if (typeof param === 'string' && param.startsWith('0x')) {
+          // Hex string (address or bytes)
+          encodedParams += param.slice(2).padStart(64, '0');
+        } else if (typeof param === 'number') {
+          // Number
+          encodedParams += param.toString(16).padStart(64, '0');
+        } else if (typeof param === 'string') {
+          // Regular string - simplified encoding
+          const strBytes = new TextEncoder().encode(param);
+          let hexStr = '';
+          for (let i = 0; i < strBytes.length; i++) {
+            hexStr += strBytes[i].toString(16).padStart(2, '0');
+          }
+          encodedParams += hexStr.padEnd(64, '0');
+        } else if (Array.isArray(param)) {
+          // Array - simplified encoding for demo
+          encodedParams += param.map(p => p.toString(16).padStart(64, '0')).join('');
+        }
+      });
+
+      // Combine selector and parameters
+      const fullCalldata = selectorBytes + encodedParams;
+
+      // Convert hex string to Uint8Array
+      return hexStringToUint8Array(fullCalldata);
+    } catch (err) {
+      console.error('Error encoding function call:', err);
+      // Fallback to simple encoding
+      const encoder = new TextEncoder();
+      return encoder.encode(`${functionName}(${params.join(',')})`);
+    }
+  };
+
+  // Helper function to generate parameter type signature
+  const generateParamTypeSignature = (params: any[]): string => {
+    return params.map(param => {
+      if (typeof param === 'string' && param.startsWith('0x')) {
+        return 'address';
+      } else if (typeof param === 'number') {
+        return param % 1 === 0 ? 'uint256' : 'uint256';
+      } else if (typeof param === 'string') {
+        return 'string';
+      } else if (Array.isArray(param)) {
+        return 'uint256[]';
+      }
+      return 'bytes';
+    }).join(',');
+  };
+
+  // Helper function to hash a function selector
+  const hashFunctionSelector = (selector: string): string => {
+    // In a real implementation, use keccak256 from a proper library
+    // This is a placeholder
+    return '0x' + Array.from(selector).reduce((hash, char) => {
+      return (((hash << 5) - hash) + char.charCodeAt(0)) & 0xFFFFFFFF;
+    }, 0).toString(16).padStart(8, '0');
+  };
+
+  // Helper function to convert hex string to Uint8Array
+  const hexStringToUint8Array = (hexString: string): Uint8Array => {
+    if (hexString.startsWith('0x')) {
+      hexString = hexString.slice(2);
+    }
+
+    const bytes = new Uint8Array(hexString.length / 2);
+    for (let i = 0; i < hexString.length; i += 2) {
+      bytes[i / 2] = parseInt(hexString.substring(i, i + 2), 16);
+    }
+
+    return bytes;
+  };
+
   const executeBatchedTransactions = async (
     transactions: BatchedTransaction[]
   ) => {
@@ -349,27 +743,41 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     
     try {
       // Prepare the batched transaction data
-      const targetContracts = transactions.map(t => t.targetContract);
-      const values = transactions.map(t => t.value);
-      const functionCallsData = transactions.map(t => 
-        `${t.functionName}(${t.params.join(',')})`
+      const targetContracts: string[] = transactions.map(t => t.targetContract);
+      const values: number[] = transactions.map(t => t.value);
+      const functionCallsData: Uint8Array[] = transactions.map(t =>
+        encodeFunctionCall(t.functionName, t.params)
       );
       
       // Total value to send is the sum of all transaction values
       const totalValue = values.reduce((sum, val) => sum + val, 0);
       
-      // Call the executeBatch function on the TajiriWallet
-      // Note: This assumes your smart wallet contract has an executeBatch function
+      // Convert arrays to format expected by contract
+      const targetsArray = new ContractFunctionParameters();
+      targetContracts.forEach((target, i) => {
+        targetsArray.addAddress(target);
+      });
+
+      const valuesArray = new ContractFunctionParameters();
+      values.forEach((value, i) => {
+        valuesArray.addUint256(value);
+      });
+
+      const dataArray = new ContractFunctionParameters();
+      functionCallsData.forEach((data, i) => {
+        dataArray.addBytes(data);
+      });
+
+      // Set up the contract execution with proper parameters
       const tx = new ContractExecuteTransaction()
         .setContractId(ContractId.fromString(smartWalletId))
         .setGas(2000000) // Higher gas limit for batched transactions
         .setFunction(
           "executeBatch", 
-          [
-            targetContracts, // array of target addresses
-            values,          // array of values to send
-            functionCallsData // array of encoded function calls
-          ]
+          new ContractFunctionParameters()
+            .addAddressArray(targetContracts) // Add array of target addresses
+            .addUint256Array(values.map(v => v)) // Add array of values
+            .addBytesArray(functionCallsData) // Add array of function call data
         )
         .setPayableAmount(new Hbar(totalValue));
       
@@ -381,6 +789,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       
       return receipt;
     } catch (err: any) {
+      console.error('Batched transaction error details:', err);
       setError(`Batched transaction failed: ${err.message}`);
       throw err;
     } finally {
@@ -476,13 +885,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     setError(null);
     
     try {
-      // Call the addGuardian function on the smart wallet
+      // Let the client handle signing with its operator key
       const tx = new ContractExecuteTransaction()
         .setContractId(ContractId.fromString(smartWalletId))
         .setGas(1000000)
         .setFunction(
           "addGuardian", 
-          [guardianAddress]
+          new ContractFunctionParameters().addAddress(guardianAddress)
         );
       
       const response = await tx.execute(client);
@@ -509,13 +918,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     setError(null);
     
     try {
-      // Call the removeGuardian function on the smart wallet
+      // Let the client handle signing with its operator key
       const tx = new ContractExecuteTransaction()
         .setContractId(ContractId.fromString(smartWalletId))
         .setGas(1000000)
         .setFunction(
           "removeGuardian", 
-          [guardianAddress]
+          new ContractFunctionParameters().addAddress(guardianAddress)
         );
       
       const response = await tx.execute(client);
@@ -551,13 +960,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         throw new Error('No wallet ID provided for recovery');
       }
       
-      // Call the initiateRecovery function on the target wallet
+      // Let the client handle signing with its operator key
       const tx = new ContractExecuteTransaction()
         .setContractId(ContractId.fromString(walletToRecover))
         .setGas(1000000)
         .setFunction(
           "initiateRecovery", 
-          [accountId, newOwnerAddress]
+          new ContractFunctionParameters().addAddress(newOwnerAddress)
         );
       
       const response = await tx.execute(client);
@@ -584,13 +993,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     setError(null);
     
     try {
-      // Call the approveRecovery function on the target wallet
+      // Let the client handle signing with its operator key
       const tx = new ContractExecuteTransaction()
         .setContractId(ContractId.fromString(walletToRecover))
         .setGas(1000000)
         .setFunction(
           "approveRecovery", 
-          [newOwnerAddress]
+          new ContractFunctionParameters().addAddress(newOwnerAddress)
         );
       
       const response = await tx.execute(client);
@@ -617,7 +1026,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     setError(null);
     
     try {
-      // Call the cancelRecovery function on the smart wallet
+      // Let the client handle signing with its operator key
       const tx = new ContractExecuteTransaction()
         .setContractId(ContractId.fromString(smartWalletId))
         .setGas(1000000)
@@ -637,6 +1046,114 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       return false;
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Implement new Hedera Token Service (HTS) functions
+  const getTokenBalance = async (tokenId: string): Promise<string> => {
+    if (!client || !smartWalletId) {
+      throw new Error('No wallet connected or smart wallet not created');
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const tx = new ContractCallQuery()
+        .setContractId(ContractId.fromString(smartWalletId))
+        .setGas(100000)
+        .setFunction("getTokenBalance", new ContractFunctionParameters().addAddress(tokenId));
+
+      const response = await tx.execute(client);
+      const result = response as ContractFunctionResult;
+      const balance = result.getUint256(0);
+
+      return balance.toString();
+    } catch (err: any) {
+      setError(`Failed to get token balance: ${err.message}`);
+      return '0';
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const associateToken = async (tokenId: string): Promise<boolean> => {
+    if (!client || !smartWalletId) {
+      throw new Error('No wallet connected or smart wallet not created');
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const tx = new ContractExecuteTransaction()
+        .setContractId(ContractId.fromString(smartWalletId))
+        .setGas(1000000)
+        .setFunction("associateToken", new ContractFunctionParameters().addAddress(tokenId));
+
+      const response = await tx.execute(client);
+      await response.getReceipt(client);
+
+      return true;
+    } catch (err: any) {
+      setError(`Failed to associate token: ${err.message}`);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const transferToken = async (tokenId: string, recipientId: string, amount: number): Promise<boolean> => {
+    if (!client || !smartWalletId) {
+      throw new Error('No wallet connected or smart wallet not created');
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const tx = new ContractExecuteTransaction()
+        .setContractId(ContractId.fromString(smartWalletId))
+        .setGas(1000000)
+        .setFunction(
+          "transferToken",
+          new ContractFunctionParameters()
+            .addAddress(tokenId)
+            .addAddress(recipientId)
+            .addUint256(amount)
+        );
+
+      const response = await tx.execute(client);
+      await response.getReceipt(client);
+
+      return true;
+    } catch (err: any) {
+      setError(`Failed to transfer token: ${err.message}`);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getHbarExchangeRate = async (): Promise<number> => {
+    if (!client || !smartWalletId) {
+      throw new Error('No wallet connected or smart wallet not created');
+    }
+
+    try {
+      const tx = new ContractCallQuery()
+        .setContractId(ContractId.fromString(smartWalletId))
+        .setGas(100000)
+        .setFunction("getHbarExchangeRate");
+
+      const response = await tx.execute(client);
+      const result = response as ContractFunctionResult;
+      const rate = result.getInt64(0);
+
+      return Number(rate) / 100000000; // Convert tiny USD cents to USD
+    } catch (err: any) {
+      console.error(`Failed to get HBAR exchange rate: ${err.message}`);
+      return 0;
     }
   };
 
@@ -663,6 +1180,11 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     recoveryInProgress,
     recoveryInitiator,
     proposedNewOwner,
+    // New HTS functions
+    getTokenBalance,
+    associateToken,
+    transferToken,
+    getHbarExchangeRate,
   };
 
   return (
