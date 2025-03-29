@@ -3,9 +3,16 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useWallet } from '@/contexts/WalletContext';
+import { useSession } from 'next-auth/react';
+import GoogleLoginButton from '@/components/GoogleLoginButton';
+import HeroSection from '@/components/ui/HeroSection';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/Card';
+import StatusIndicator from '@/components/ui/StatusIndicator';
 
 export default function Home() {
-  const { connectWallet, isLoading } = useWallet();
+  const { connectWallet, isLoading, isConnected } = useWallet();
+  const { data: session } = useSession();
 
   const handleConnectWallet = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -14,61 +21,105 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Hero Section with Safaricom-inspired design */}
-      <section className="relative bg-gradient-to-b from-primary-50 via-primary-100 to-white dark:from-primary-950 dark:via-primary-900 dark:to-primary-950 py-20 md:py-32 overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-24 -right-24 w-96 h-96 bg-secondary-400 opacity-10 rounded-full blur-3xl"></div>
-          <div className="absolute top-1/2 -left-24 w-80 h-80 bg-primary-400 opacity-10 rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-24 right-1/2 w-60 h-60 bg-accent-400 opacity-10 rounded-full blur-3xl"></div>
-        </div>
-        <div className="container mx-auto px-4 relative">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6 animate-fadeIn">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-primary-950 dark:text-white">
-                <span className="block">Trade Kenyan stocks</span>
-                <span className="block bg-gradient-to-r from-primary-600 to-secondary-500 inline-block text-transparent bg-clip-text">on Base</span>
-              </h1>
-              <p className="text-lg md:text-xl text-primary-700 dark:text-primary-200 max-w-2xl">
-                Get ready to connect your self custodial wallet and trade our tokenized stocks from Nairobi Securities Exchange (NSE), making investing accessible to everyone.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <button
+      {/* Hero Section with consistent styling using the HeroSection component */}
+      <HeroSection
+        title="TRADE KENYAN STOCKS ON HEDERA"
+        highlightedWord="STOCKS"
+        description="Connect your wallet and trade tokenized stocks from Nairobi Securities Exchange (NSE), making investing accessible to everyone through blockchain technology."
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+          <div className="space-y-8">
+            <div className="flex flex-col sm:flex-row gap-4 pt-2">
+              {!isConnected && (
+                <Button
                   onClick={handleConnectWallet}
                   disabled={isLoading}
-                  className="inline-flex items-center justify-center rounded-md bg-gradient-to-r from-primary-600 to-secondary-600 px-8 py-3 text-base font-medium text-white shadow-lg hover:from-primary-700 hover:to-secondary-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  loading={isLoading}
+                  variant="primary"
                 >
-                  {isLoading ? 'Connecting...' : 'Connect Wallet'}
-                </button>
-                <Link
-                  href="/about"
-                  className="inline-flex items-center justify-center rounded-md border border-primary-200 bg-white px-8 py-3 text-base font-medium text-primary-700 shadow-sm hover:bg-primary-50 transition-all dark:border-primary-700 dark:bg-primary-900 dark:text-primary-200 dark:hover:bg-primary-800"
-                >
-                  Learn More
-                </Link>
+                  Connect Wallet
+                </Button>
+              )}
+              <div className="relative z-10">
+                <GoogleLoginButton />
               </div>
+              <Button asChild variant="secondary">
+                <Link href="/marketplace">
+                  Explore Marketplace
+                </Link>
+              </Button>
             </div>
-            <div className="relative h-64 md:h-80 lg:h-96 animate-slideUp">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-2xl opacity-20 blur-xl"></div>
-              <div className="relative h-full w-full rounded-2xl overflow-hidden shadow-xl">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary-500 to-secondary-500 opacity-90"></div>
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6">
-                  <div className="text-3xl font-bold mb-4">NSE Tokenized</div>
-                  <div className="grid grid-cols-2 gap-4 w-full max-w-xs">
-                    <div className="bg-white bg-opacity-20 p-3 rounded-lg backdrop-blur-sm transform hover:scale-105 transition-all">
-                      <div className="text-sm opacity-80">SCOM</div>
-                      <div className="text-lg font-semibold">+3.2%</div>
+            {session && !isConnected && (
+              <StatusIndicator
+                type="info"
+                title="Google Account Connected"
+                message="You're signed in with Google. Connect your wallet to start trading tokenized stocks."
+                className="max-w-md"
+              />
+            )}
+            </div>
+            <div className="relative">
+              <div className="decode-card border border-decode-green/30 p-6 rounded-2xl overflow-hidden shadow-xl backdrop-blur-sm">
+                <div className="flex flex-col h-full">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 bg-decode-green/20 rounded-full flex items-center justify-center">
+                        <svg className="h-5 w-5 text-decode-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-xl font-bold text-decode-white">NSE Tokenized</h3>
                     </div>
-                    <div className="bg-white bg-opacity-20 p-3 rounded-lg backdrop-blur-sm transform hover:scale-105 transition-all">
-                      <div className="text-sm opacity-80">EQTY</div>
-                      <div className="text-lg font-semibold">+1.7%</div>
+                    <div className="text-sm text-decode-green">Live</div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 w-full">
+                    <div className="decode-card p-4 rounded-lg transform hover:scale-105 transition-all hover:border-decode-green/40">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm text-gray-400">SCOM</div>
+                        <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">
+                          <svg className="h-3 w-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="text-lg font-semibold text-decode-white">+3.2%</div>
+                      <div className="text-xs text-gray-400 mt-1">24h change</div>
                     </div>
-                    <div className="bg-white bg-opacity-20 p-3 rounded-lg backdrop-blur-sm transform hover:scale-105 transition-all">
-                      <div className="text-sm opacity-80">KCB</div>
-                      <div className="text-lg font-semibold">+2.5%</div>
+                    <div className="decode-card p-4 rounded-lg transform hover:scale-105 transition-all hover:border-decode-green/40">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm text-gray-400">EQTY</div>
+                        <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">
+                          <svg className="h-3 w-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="text-lg font-semibold text-decode-white">+1.7%</div>
+                      <div className="text-xs text-gray-400 mt-1">24h change</div>
                     </div>
-                    <div className="bg-white bg-opacity-20 p-3 rounded-lg backdrop-blur-sm transform hover:scale-105 transition-all">
-                      <div className="text-sm opacity-80">EABL</div>
-                      <div className="text-lg font-semibold">+0.8%</div>
+                    <div className="decode-card p-4 rounded-lg transform hover:scale-105 transition-all hover:border-decode-green/40">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm text-gray-400">KCB</div>
+                        <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">
+                          <svg className="h-3 w-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="text-lg font-semibold text-decode-white">+2.5%</div>
+                      <div className="text-xs text-gray-400 mt-1">24h change</div>
+                    </div>
+                    <div className="decode-card p-4 rounded-lg transform hover:scale-105 transition-all hover:border-decode-green/40">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm text-gray-400">EABL</div>
+                        <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">
+                          <svg className="h-3 w-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="text-lg font-semibold text-decode-white">+0.8%</div>
+                      <div className="text-xs text-gray-400 mt-1">24h change</div>
                     </div>
                   </div>
                 </div>
