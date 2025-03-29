@@ -1,7 +1,17 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
+import { useWallet } from '@/contexts/WalletContext';
 
 export default function Home() {
+  const { connectWallet, isLoading } = useWallet();
+
+  const handleConnectWallet = (e: React.MouseEvent) => {
+    e.preventDefault();
+    connectWallet();
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section with Safaricom-inspired design */}
@@ -22,12 +32,13 @@ export default function Home() {
                 Get ready to connect your self custodial wallet and trade our tokenized stocks from Nairobi Securities Exchange (NSE), making investing accessible to everyone.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link
-                  href="/marketplace"
-                  className="inline-flex items-center justify-center rounded-md bg-gradient-to-r from-primary-600 to-secondary-600 px-8 py-3 text-base font-medium text-white shadow-lg hover:from-primary-700 hover:to-secondary-700 transition-all"
+                <button
+                  onClick={handleConnectWallet}
+                  disabled={isLoading}
+                  className="inline-flex items-center justify-center rounded-md bg-gradient-to-r from-primary-600 to-secondary-600 px-8 py-3 text-base font-medium text-white shadow-lg hover:from-primary-700 hover:to-secondary-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Connect Wallet
-                </Link>
+                  {isLoading ? 'Connecting...' : 'Connect Wallet'}
+                </button>
                 <Link
                   href="/about"
                   className="inline-flex items-center justify-center rounded-md border border-primary-200 bg-white px-8 py-3 text-base font-medium text-primary-700 shadow-sm hover:bg-primary-50 transition-all dark:border-primary-700 dark:bg-primary-900 dark:text-primary-200 dark:hover:bg-primary-800"
@@ -188,12 +199,13 @@ export default function Home() {
           <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
             Join Tajiri today and experience the future of stock trading on the Nairobi Securities Exchange.
           </p>
-          <Link
-            href="/marketplace"
-            className="inline-flex items-center justify-center rounded-md bg-white px-8 py-3 text-lg font-medium text-primary-600 shadow-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 transition-all"
+          <button
+            onClick={handleConnectWallet}
+            disabled={isLoading}
+            className="inline-flex items-center justify-center rounded-md bg-white px-8 py-3 text-lg font-medium text-primary-600 shadow-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Connect Wallet
-          </Link>
+            {isLoading ? 'Connecting...' : 'Connect Wallet'}
+          </button>
         </div>
       </section>
     </div>
