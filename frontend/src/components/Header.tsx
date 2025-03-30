@@ -3,14 +3,18 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useWallet } from '@/contexts/WalletContext';
+import { useKYC, KYCStatus } from '@/contexts/KYCContext';
 import WalletConnection from '@/components/WalletConnection';
 
 export default function Header() {
     const { isConnected } = useWallet();
+    const { kycStatus } = useKYC();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     // Only show main header if not connected (otherwise WalletLayout handles navigation)
     if (isConnected) return null;
+
+    const needsKYC = kycStatus === KYCStatus.NONE || kycStatus === KYCStatus.REJECTED;
 
     return (
         <>
@@ -35,6 +39,17 @@ export default function Header() {
                         <Link href="/wallet" className="text-sm font-medium text-decode-white hover:text-decode-green transition-colors">
                             PORTFOLIO
                         </Link>
+                        {needsKYC && isConnected && (
+                            <Link
+                                href="/kyc"
+                                className="text-sm font-medium text-yellow-500 hover:text-yellow-400 transition-colors flex items-center gap-1"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                </svg>
+                                COMPLETE KYC
+                            </Link>
+                        )}
                         <div className="h-5 w-px bg-decode-green/30 mx-2"></div>
                         <WalletConnection />
                     </nav>
@@ -93,6 +108,18 @@ export default function Header() {
                         >
                             PORTFOLIO
                         </Link>
+                        {needsKYC && isConnected && (
+                            <Link
+                                href="/kyc"
+                                className="text-lg font-medium text-yellow-500 hover:text-yellow-400 transition-colors flex items-center gap-2"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                </svg>
+                                COMPLETE KYC
+                            </Link>
+                        )}
                         <div className="my-4">
                             <WalletConnection />
                         </div>
