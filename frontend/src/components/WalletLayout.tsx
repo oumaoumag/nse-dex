@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useWallet } from '@/contexts/WalletContext';
+import { useKYC, KYCStatus } from '@/contexts/KYCContext';
 
 // Updated navigation to match routes used in the root layout
 const navigation = [
@@ -11,6 +12,7 @@ const navigation = [
   { name: 'Marketplace', href: '/marketplace' },
   { name: 'P2P Trading', href: '/trading' },
   { name: 'Lending', href: '/lend' },
+  { name: 'Security & Recovery', href: '/security' },
   { name: 'KYC', href: '/kyc' },
   { name: 'Learn', href: '/learn' },
 ];
@@ -18,11 +20,53 @@ const navigation = [
 export default function WalletLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isConnected } = useWallet();
+  const { kycStatus, canTrade } = useKYC();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Toggle mobile menu
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const getKYCStatusIndicator = () => {
+    switch (kycStatus) {
+      case KYCStatus.APPROVED:
+        return (
+          <div className="flex items-center gap-2 px-4 py-2 bg-green-500/10 text-green-500 rounded-md">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <span className="text-xs font-medium">KYC Approved</span>
+          </div>
+        );
+      case KYCStatus.PENDING:
+        return (
+          <div className="flex items-center gap-2 px-4 py-2 bg-yellow-500/10 text-yellow-500 rounded-md">
+            <svg className="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span className="text-xs font-medium">KYC Pending</span>
+          </div>
+        );
+      case KYCStatus.REJECTED:
+        return (
+          <div className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-500 rounded-md">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+            <span className="text-xs font-medium">KYC Rejected</span>
+          </div>
+        );
+      default:
+        return (
+          <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 text-blue-500 rounded-md">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span className="text-xs font-medium">KYC Required</span>
+          </div>
+        );
+    }
   };
 
 // We'll always render the children, but only show the side navigation when connected
@@ -56,21 +100,38 @@ export default function WalletLayout({ children }: { children: React.ReactNode }
                 <span className="text-xl font-bold decode-gradient bg-clip-text text-transparent">Tajiri</span>
               </Link>
             </div>
-            <nav className="mt-6">
+
+            {/* KYC Status */}
+            <div className="px-4 py-4">
+              {getKYCStatusIndicator()}
+            </div>
+
+            <nav className="mt-2">
               <div className="px-2 space-y-1">
-                {navigation.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={`${pathname === item.href
-                      ? 'bg-decode-green/10 text-decode-green'
-                      : 'text-gray-300 hover:bg-decode-green/5 hover:text-decode-green'
-                      } group flex items-center px-4 py-3 text-sm font-medium rounded-md transition-colors`}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
+                {navigation.map((item) => {
+                  // Block access to trading and marketplace if KYC isn't approved
+                  const isRestrictedRoute = (item.href === '/marketplace' || item.href === '/trading') && !canTrade;
+
+                  return (
+                    <Link
+                      key={item.name}
+                      href={isRestrictedRoute ? '/kyc' : item.href}
+                      className={`${pathname === item.href
+                        ? 'bg-decode-green/10 text-decode-green'
+                        : 'text-gray-300 hover:bg-decode-green/5 hover:text-decode-green'
+                        } group flex items-center px-4 py-3 text-sm font-medium rounded-md transition-colors
+                        ${isRestrictedRoute ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {item.name}
+                      {isRestrictedRoute && (
+                        <svg className="w-4 h-4 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                        </svg>
+                      )}
+                    </Link>
+                  );
+                })}
               </div>
             </nav>
           </div>
