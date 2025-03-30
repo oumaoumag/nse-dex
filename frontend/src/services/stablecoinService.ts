@@ -13,20 +13,20 @@ const ERC20_ABI = [
 ];
 
 // Token configurations
-export const SUPPORTED_TOKENS = {
-    USDC: {
+export const SUPPORTED_TOKENS = [
+    {
         name: 'USD Coin',
         symbol: 'USDC',
         address: process.env.NEXT_PUBLIC_USDC_TOKEN_ADDRESS || '',
         decimals: 6
     },
-    USDT: {
+    {
         name: 'Tether USD',
         symbol: 'USDT',
         address: process.env.NEXT_PUBLIC_USDT_TOKEN_ADDRESS || '',
         decimals: 6
     }
-};
+];
 
 /**
  * Get a token contract instance
