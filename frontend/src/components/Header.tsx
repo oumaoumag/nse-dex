@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useWallet } from '@/contexts/WalletContext';
 import WalletConnection from '@/components/WalletConnection';
+import GoogleLoginButton from '@/components/GoogleLoginButton';
 
 export default function Header() {
     const { isConnected } = useWallet();
@@ -37,7 +38,15 @@ export default function Header() {
                 <div className="container mx-auto flex h-20 items-center justify-between px-4">
                     <div className="flex items-center gap-3">
                         <Link href="/" className="flex items-center gap-3">
-                            <img src="/assets/logo/tajiri-logo.svg" alt="Tajiri Logo" className="h-10" />
+                            <img
+                                src="/assets/logo/tajiri-logo.svg"
+                                alt="Tajiri Logo"
+                                className="h-10 w-10"
+                                onError={(e) => {
+                                    e.currentTarget.onerror = null;
+                                    e.currentTarget.style.display = 'none';
+                                }}
+                            />
                             <span className="text-2xl font-bold decode-gradient bg-clip-text text-transparent">Tajiri</span>
                         </Link>
                     </div>
@@ -90,7 +99,8 @@ export default function Header() {
                             </Link>
                         )}
                         <div className="h-5 w-px bg-decode-green/30 mx-2"></div>
-                        <WalletConnection />
+                        <WalletConnection compact={true} />
+                        <GoogleLoginButton />
                     </nav>
 
                     {/* Mobile menu button */}
@@ -108,7 +118,19 @@ export default function Header() {
             {/* Mobile Navigation */}
             {isMobileMenuOpen && (
                 <div className="fixed inset-0 z-40 bg-decode-black/95 md:hidden">
-                    <div className="flex justify-end p-4">
+                    <div className="flex justify-between items-center p-4">
+                        <Link href="/" className="flex items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
+                            <img
+                                src="/assets/logo/tajiri-logo.svg"
+                                alt="Tajiri Logo"
+                                className="h-8 w-8"
+                                onError={(e) => {
+                                    e.currentTarget.onerror = null;
+                                    e.currentTarget.style.display = 'none';
+                                }}
+                            />
+                            <span className="text-xl font-bold decode-gradient bg-clip-text text-transparent">Tajiri</span>
+                        </Link>
                         <button
                             className="text-decode-white p-2"
                             onClick={() => setIsMobileMenuOpen(false)}
@@ -172,7 +194,10 @@ export default function Header() {
                             </Link>
                         )}
                         <div className="my-4">
-                            <WalletConnection />
+                            <WalletConnection compact={true} />
+                        </div>
+                        <div className="my-4">
+                            <GoogleLoginButton />
                         </div>
                     </nav>
                 </div>

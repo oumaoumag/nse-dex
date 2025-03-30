@@ -228,7 +228,7 @@ const roadmap = [
       'Tokenize first batch of NSE stocks',
       'Launch trading marketplace',
       'Integrate wallet providers',
-      'Implement KYC/AML compliance tools'
+      'Implement user verification and security features'
     ]
   },
   {

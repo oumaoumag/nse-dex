@@ -53,6 +53,15 @@ export default function WalletLayout({ children }: { children: React.ReactNode }
           >
             <div className="h-20 flex items-center justify-center border-b border-decode-green/20">
               <Link href="/" className="flex items-center gap-2">
+                <img
+                  src="/assets/logo/tajiri-logo.svg"
+                  alt="Tajiri Logo"
+                  className="h-8 w-8"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
                 <span className="text-xl font-bold decode-gradient bg-clip-text text-transparent">Tajiri</span>
               </Link>
             </div>

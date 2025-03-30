@@ -5,7 +5,7 @@ import { useWallet } from '../contexts/WalletContext';
 import { StatusMessage } from './ui/StatusMessage';
 import { useForm } from '../utils/formUtils';
 
-const WalletConnection: React.FC = () => {
+const WalletConnection: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
   const { 
     isConnected, 
     accountId, 
@@ -59,6 +59,47 @@ const WalletConnection: React.FC = () => {
     }
   };
 
+  // If in compact mode (for header), display minimal version
+  if (compact) {
+    return (
+      <div>
+        {!isConnected ? (
+          <button
+            onClick={handleConnectWallet}
+            disabled={isLoading}
+            className="decode-card flex items-center gap-3 py-2 px-4 border border-decode-green/30 rounded-lg hover:border-decode-green/60 transition-all"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8" />
+              <path d="M3 6h18" />
+              <path d="M15 2H9a2 2 0 0 0-2 2v2h10V4a2 2 0 0 0-2-2z" />
+            </svg>
+            <span className="text-sm font-medium text-decode-white">
+              {isLoading ? 'Connecting...' : 'Connect Wallet'}
+            </span>
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <div className="decode-card border border-decode-green/30 py-1 px-3 rounded-lg text-xs">
+              <span className="font-mono text-decode-green">{accountId?.substring(0, 10)}...</span>
+              <span className="ml-1 text-gray-400">{balance?.substring(0, 6) || '0'} ℏ</span>
+            </div>
+            <button
+              onClick={handleDisconnectWallet}
+              className="text-decode-red hover:text-decode-red-600 p-1"
+              title="Disconnect Wallet"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M1.5 15a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-5a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5zm5 0a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-5a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5zm5 0a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-5a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5zM0 4a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1z" />
+              </svg>
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Full version for wallet pages
   return (
     <div className="p-6 bg-blue rounded-lg shadow-md">
       <h2 className="text-xl font-semibold mb-4">Wallet Connection</h2>

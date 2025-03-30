@@ -49,7 +49,7 @@ const faqs: FAQ[] = [
     },
     {
         question: 'How do I get started?',
-        answer: 'To get started, you need to connect your wallet, complete the KYC process, and deposit stablecoins. You can then start trading tokenized stocks or use the lending protocol.',
+        answer: 'To get started, you need to create an account, connect your wallet, and deposit stablecoins. You can then start trading tokenized stocks or use the lending protocol.',
     },
     {
         question: 'What are the fees?',

@@ -213,18 +213,18 @@ const Portfolio: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Portfolio Summary */}
+        {/* Portfolio Summary */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-primary-50 dark:bg-primary-800 rounded-lg p-4">
+          <div className="bg-primary-50 dark:bg-primary-800 rounded-lg p-4">
                   <h3 className="text-sm font-medium text-primary-500 dark:text-primary-400 mb-1">
                     Total Portfolio Value
                   </h3>
-                  <p className="text-2xl font-bold text-primary-900 dark:text-white">
+            <p className="text-2xl font-bold text-primary-900 dark:text-white">
                     ${portfolioValue.toFixed(2)}
-                  </p>
-                </div>
+            </p>
+          </div>
 
-                <div className="bg-primary-50 dark:bg-primary-800 rounded-lg p-4">
+          <div className="bg-primary-50 dark:bg-primary-800 rounded-lg p-4">
                   <h3 className="text-sm font-medium text-primary-500 dark:text-primary-400 mb-1">
                     Performance ({timeRange})
                   </h3>
@@ -233,18 +233,18 @@ const Portfolio: React.FC = () => {
                     : 'text-red-600 dark:text-red-400'
                     }`}>
                     {portfolioGrowth >= 0 ? '+' : ''}{portfolioGrowth.toFixed(2)}%
-                  </p>
-                </div>
+            </p>
+          </div>
 
-                <div className="bg-primary-50 dark:bg-primary-800 rounded-lg p-4">
+          <div className="bg-primary-50 dark:bg-primary-800 rounded-lg p-4">
                   <h3 className="text-sm font-medium text-primary-500 dark:text-primary-400 mb-1">
                     Assets
                   </h3>
-                  <p className="text-2xl font-bold text-primary-900 dark:text-white">
+            <p className="text-2xl font-bold text-primary-900 dark:text-white">
                     {portfolioAllocation.length}
-                  </p>
-                </div>
-              </div>
+            </p>
+          </div>
+        </div>
 
               {/* Performance Chart */}
               <div className="bg-primary-50 dark:bg-primary-800 rounded-lg p-4">
@@ -343,7 +343,7 @@ const Portfolio: React.FC = () => {
                         {performanceHistory.filter((_, i) => i % Math.ceil(performanceHistory.length / 6) === 0 || i === performanceHistory.length - 1).map((point, i) => (
                           <span key={i}>{formatDate(point.timestamp)}</span>
                         ))}
-                      </div>
+          </div>
                     </>
                   )}
                 </div>
@@ -353,7 +353,7 @@ const Portfolio: React.FC = () => {
               <div className="bg-primary-50 dark:bg-primary-800 rounded-lg p-4">
                 <h3 className="text-lg font-medium text-primary-900 dark:text-white mb-4">
                   Portfolio Allocation
-                </h3>
+            </h3>
 
                 {portfolioAllocation.length === 0 ? (
                   <p className="text-center py-4 text-primary-500 dark:text-primary-400">
@@ -449,11 +449,11 @@ const Portfolio: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="ml-2">
-                                <div className="text-sm font-medium text-primary-900 dark:text-white">
-                                  {stock.shortName}
-                                </div>
-                                <div className="text-xs text-primary-500 dark:text-primary-400">
-                                  {stock.longName}
+                            <div className="text-sm font-medium text-primary-900 dark:text-white">
+                              {stock.shortName}
+                            </div>
+                            <div className="text-xs text-primary-500 dark:text-primary-400">
+                              {stock.longName}
                                 </div>
                               </div>
                             </div>

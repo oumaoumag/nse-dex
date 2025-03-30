@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStock } from '@/contexts/StockContext';
-import { useWallet } from '@/contexts/WalletContext';
 import { Stock } from '@/types/stock';
 import MintWithStablecoin from './MintWithStablecoin';
 
@@ -16,7 +15,9 @@ const StockMintRedeem: React.FC = () => {
         exchangeRate
     } = useStock();
 
-    const { isConnected, smartWalletId, balance } = useWallet();
+    // Simulate balance for now - this would come from the contract directly after wallet creation
+    const [userBalance, setUserBalance] = useState<number>(125.5);
+    const [userTokenBalances, setUserTokenBalances] = useState<{[key: string]: number}>({});
 
     // UI state
     const [activeTab, setActiveTab] = useState<'mint-hbar' | 'mint-stablecoin' | 'redeem'>('mint-hbar');
@@ -41,13 +42,19 @@ const StockMintRedeem: React.FC = () => {
     };
 
     // Handle stock minting with HBAR
+    // Initialize with mock token balances for demo stocks
+    useEffect(() => {
+        if (stocks.length > 0) {
+            const mockBalances: {[key: string]: number} = {};
+            stocks.slice(0, 3).forEach(stock => {
+                mockBalances[stock.id] = Math.floor(Math.random() * 10) + 1;
+            });
+            setUserTokenBalances(mockBalances);
+        }
+    }, [stocks]);
+
     const handleMintStock = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        if (!isConnected || !smartWalletId) {
-            setTransactionStatus('Please connect your wallet first');
-            return;
-        }
 
         if (!selectedStock) {
             setTransactionStatus('Please select a stock to mint');
@@ -55,7 +62,7 @@ const StockMintRedeem: React.FC = () => {
         }
 
         // Check if user has sufficient HBAR balance
-        if (parseFloat(balance || '0') < hbarAmount) {
+        if (userBalance < hbarAmount) {
             setTransactionStatus('Insufficient HBAR balance');
             return;
         }
@@ -90,11 +97,6 @@ const StockMintRedeem: React.FC = () => {
     const handleRedeemStock = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!isConnected || !smartWalletId) {
-            setTransactionStatus('Please connect your wallet first');
-            return;
-        }
-
         if (!selectedStock) {
             setTransactionStatus('Please select a stock to redeem');
             return;
@@ -126,12 +128,25 @@ const StockMintRedeem: React.FC = () => {
         }
     };
 
+    // Check if user has sufficient token balance for redemption
+    const checkRedemptionEligibility = (): boolean => {
+        if (!selectedStock) return false;
+        const userBalance = userTokenBalances[selectedStock.id] || 0;
+        return userBalance >= tokenAmount;
+    };
+
     return (
         <div className="bg-white dark:bg-primary-900 rounded-xl shadow-md overflow-hidden">
             <div className="p-6">
-                <h2 className="text-2xl font-bold text-primary-900 dark:text-white mb-6">
-                    Stock Tokens
-                </h2>
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-primary-900 dark:text-white">
+                        Stock Tokens
+                    </h2>
+                    <div className="text-right">
+                        <p className="text-sm text-primary-600 dark:text-primary-400">Your Balance</p>
+                        <p className="text-lg font-bold text-primary-900 dark:text-white">{userBalance.toFixed(4)} HBAR</p>
+                    </div>
+                </div>
 
                 {/* Error message */}
                 {error && (
@@ -143,15 +158,50 @@ const StockMintRedeem: React.FC = () => {
                 {/* Transaction status */}
                 {transactionStatus && (
                     <div
-                        className={`mb-4 p-3 rounded-md ${transactionStatus.includes('Error') || transactionStatus.includes('failed')
+                        className={`mb-4 p-3 rounded-md flex items-start ${transactionStatus.includes('Error') || transactionStatus.includes('failed')
                             ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
                             : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
                             }`}
                     >
-                        {transactionStatus}
+                        <div className="mr-3 flex-shrink-0 mt-0.5">
+                            {transactionStatus.includes('Error') || transactionStatus.includes('failed') ? (
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            ) : (
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                            )}
+                        </div>
+                        <div>{transactionStatus}</div>
                     </div>
                 )}
 
+                {/* User token balances */}
+                {Object.keys(userTokenBalances).length > 0 && (
+                    <div className="mb-6 p-4 bg-primary-50 dark:bg-primary-800/40 rounded-lg">
+                        <h3 className="text-sm font-medium text-primary-900 dark:text-white mb-3">Your Token Holdings</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {Object.entries(userTokenBalances).map(([stockId, amount]) => {
+                                const stock = stocks.find(s => s.id === stockId);
+                                if (!stock) return null;
+                                return (
+                                    <div key={stockId} className="flex justify-between items-center p-2 bg-white dark:bg-primary-700/30 rounded">
+                                        <div className="flex items-center">
+                                            <div className="h-6 w-6 bg-primary-200 dark:bg-primary-600 rounded-full flex items-center justify-center text-xs font-medium text-primary-800 dark:text-primary-200">
+                                                {stock.shortName.substring(0, 2)}
+                                            </div>
+                                            <span className="ml-2 text-sm font-medium text-primary-900 dark:text-white">{stock.shortName}</span>
+                                        </div>
+                                        <span className="text-sm font-semibold text-primary-900 dark:text-white">{amount} tokens</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+                
                 {/* Tabs */}
                 <div className="flex mb-6 border-b border-primary-200 dark:border-primary-700">
                     <button
@@ -229,7 +279,7 @@ const StockMintRedeem: React.FC = () => {
                                 disabled={processing}
                             />
                             <p className="mt-1 text-xs text-primary-500 dark:text-primary-400">
-                                Your balance: {balance || '0'} HBAR
+                                Your balance: {userBalance.toFixed(4)} HBAR
                             </p>
                         </div>
 
@@ -269,12 +319,12 @@ const StockMintRedeem: React.FC = () => {
                         <div>
                             <button
                                 type="submit"
-                                disabled={processing || !isConnected || !selectedStock}
+                                disabled={processing || !selectedStock || userBalance < hbarAmount}
                                 className="w-full bg-secondary-600 hover:bg-secondary-700 text-white font-medium py-2 px-4 rounded-md 
                   shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary-500 
                   disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
-                                {processing ? 'Processing...' : 'Mint with HBAR'}
+                                {processing ? 'Processing...' : userBalance < hbarAmount ? 'Insufficient Balance' : 'Mint with HBAR'}
                             </button>
                         </div>
                     </form>
@@ -304,7 +354,7 @@ const StockMintRedeem: React.FC = () => {
                                 disabled={processing}
                             >
                                 <option value="">Select a stock</option>
-                                {stocks.filter(stock => parseFloat(stock.balance || '0') > 0).map((stock) => (
+                                {stocks.filter(stock => (userTokenBalances[stock.id] || 0) > 0).map((stock) => (
                                     <option key={stock.id} value={stock.id}>
                                         {stock.shortName} - {stock.longName}
                                     </option>
@@ -312,7 +362,7 @@ const StockMintRedeem: React.FC = () => {
                             </select>
                             {selectedStock && (
                                 <p className="mt-1 text-xs text-primary-500 dark:text-primary-400">
-                                    Your balance: {selectedStock.balance || '0'} tokens
+                                    Your balance: {userTokenBalances[selectedStock.id] || 0} tokens
                                 </p>
                             )}
                         </div>
@@ -371,12 +421,12 @@ const StockMintRedeem: React.FC = () => {
                         <div>
                             <button
                                 type="submit"
-                                disabled={processing || !isConnected || !selectedStock}
+                                disabled={processing || !selectedStock || !checkRedemptionEligibility()}
                                 className="w-full bg-secondary-600 hover:bg-secondary-700 text-white font-medium py-2 px-4 rounded-md 
                   shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary-500 
                   disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
-                                {processing ? 'Processing...' : 'Redeem Tokens'}
+                                {processing ? 'Processing...' : !checkRedemptionEligibility() ? 'Insufficient Token Balance' : 'Redeem Tokens'}
                             </button>
                         </div>
                     </form>

@@ -1,30 +1,33 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
-// Define protected routes that require KYC
+// Define public routes that don't require authentication
+const publicRoutes = ['/auth/login', '/auth/signup', '/auth/forgot-password'];
+
+// Define protected routes that require authentication
 const protectedRoutes = ['/marketplace', '/trading', '/portfolio'];
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // Only check KYC status for protected routes
-  if (protectedRoutes.some(route => pathname.startsWith(route))) {
-    // Check if user is authenticated (has a session)
-    const sessionToken = request.cookies.get('next-auth.session-token')?.value;
-    
-    if (!sessionToken) {
-      // If not authenticated, redirect to login page
-      return NextResponse.redirect(new URL('/', request.url));
-    }
-    
-    // Check if user has completed KYC
-    const kycStatus = request.cookies.get('kyc-status')?.value;
-    
-    if (!kycStatus || kycStatus === 'none') {
-      // If KYC is not completed, redirect to KYC page
-      return NextResponse.redirect(new URL('/kyc', request.url));
-    }
+  // Allow access to public routes without authentication
+  if (publicRoutes.some(route => pathname.startsWith(route))) {
+    return NextResponse.next();
   }
+  
+  // Get session token from next-auth
+  const token = await getToken({ req: request });
+  
+  // If no token and not on a public route, redirect to login
+  if (!token && !pathname.startsWith('/auth')) {
+    const loginUrl = new URL('/auth/login', request.url);
+    // Preserve the original URL as callbackUrl
+    loginUrl.searchParams.set('callbackUrl', request.url);
+    return NextResponse.redirect(loginUrl);
+  }
+  
+  // No KYC check required, only authentication check is performed above
   
   return NextResponse.next();
 }
