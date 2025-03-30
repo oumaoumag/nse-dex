@@ -132,3 +132,33 @@ The UI follows the Safaricom Decode design system with:
 ## License
 
 [MIT](https://choosealicense.com/licenses/mit/)
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+#### CostQuery Error
+If you see errors like `CostQuery has not been loaded yet` in the console, this is typically due to Hedera's client not being fully initialized before making queries. 
+
+**Solution:** We've added robust retry logic to handle these errors automatically. If you still encounter them:
+1. Make sure your network connection is stable
+2. Try refreshing the page after a few seconds
+3. Check that your Hedera credentials in `.env.local` are correct
+
+#### Image Loading Issues
+If you encounter `next/image` errors with Google profile images, this happens because the Google user profile image domain needs to be allowed in Next.js configuration.
+
+**Solution:** We've implemented a fallback for image loading. If image loading still fails:
+1. Make sure `lh3.googleusercontent.com` is in the `images.domains` array in `next.config.js`
+2. Restart your development server
+
+#### Missing favicon.ico
+If you see a 500 error for favicon.ico, it means the favicon file is missing from the public directory.
+
+**Solution:** We've added a placeholder favicon. If you want to use your own:
+1. Place your `favicon.ico` file in the `frontend/public` directory
+
+#### React Component Errors
+If you see warnings about updating components while rendering, this is typically due to state updates happening during render phase.
+
+**Solution:** We've updated components to ensure state updates happen in effects or event handlers, not during rendering.
