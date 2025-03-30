@@ -36,8 +36,8 @@ export default function HomePage() {
   return (
       <div className="flex items-center justify-center h-[80vh]">
           <div className="text-center max-w-3xl mx-auto p-6">
-              <h1 className="text-4xl md:text-6xl font-bold mb-6">
-                  <span className="decode-gradient bg-clip-text text-transparent">Tajiri</span>
+              <h1 className="text-3xl md:text-4xl font-bold text-primary-900 dark:text-white mb-4">
+                  <span className="bg-gradient-to-r from-primary-600 to-secondary-500 inline-block text-transparent bg-clip-text">Tajiri</span>
               </h1>
               <p className="text-xl mb-8">
                   Tokenized stock trading platform

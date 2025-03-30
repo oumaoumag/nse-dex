@@ -41,8 +41,8 @@ export default function LoginPage() {
               className="mb-6"
             />
           </div>
-          <h2 className="text-center text-3xl font-bold text-decode-white">
-            Sign in to Tajiri
+          <h2 className="text-3xl md:text-4xl font-bold text-primary-900 dark:text-white mb-4 text-center">
+            Sign in to <span className="bg-gradient-to-r from-primary-600 to-secondary-500 inline-block text-transparent bg-clip-text">Tajiri</span>
           </h2>
           <p className="mt-2 text-center text-sm text-gray-400">
             Tokenized stock trading platform on Hedera

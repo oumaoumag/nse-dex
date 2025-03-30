@@ -24,8 +24,8 @@ export default function MarketplacePage() {
             <div className="max-w-4xl mx-auto text-center mb-16">
               <div className="inline-block mb-3">
                 <div className="h-1 w-16 bg-decode-green mb-6 mx-auto"></div>
-                <h1 className="decode-heading text-4xl md:text-6xl text-decode-white mb-6">
-                  TOKENIZED <span className="text-decode-green">STOCK</span> MARKETPLACE
+                <h1 className="text-3xl md:text-4xl font-bold text-primary-900 dark:text-white mb-4">
+                  Tokenized <span className="bg-gradient-to-r from-primary-600 to-secondary-500 inline-block text-transparent bg-clip-text">Stock</span> Marketplace
                 </h1>
               </div>
               <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
@@ -86,8 +86,8 @@ export default function MarketplacePage() {
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto text-center mb-16">
               <div className="h-px w-12 bg-decode-green mb-6 mx-auto"></div>
-              <h2 className="decode-heading text-3xl md:text-4xl text-decode-white mb-3">
-                BENEFITS OF ACCOUNT ABSTRACTION
+              <h2 className="text-2xl md:text-3xl font-bold text-primary-900 dark:text-white mb-4">
+                Benefits of Account <span className="bg-gradient-to-r from-primary-600 to-secondary-500 inline-block text-transparent bg-clip-text">Abstraction</span>
               </h2>
               <p className="text-gray-400 max-w-2xl mx-auto">Experience seamless blockchain interaction with smart contract wallets</p>
             </div>

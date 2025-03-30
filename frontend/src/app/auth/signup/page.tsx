@@ -71,8 +71,8 @@ export default function SignupPage() {
               className="mb-6"
             />
           </div>
-          <h2 className="text-center text-3xl font-bold text-decode-white">
-            Create your account
+          <h2 className="text-3xl md:text-4xl font-bold text-primary-900 dark:text-white mb-4 text-center">
+            Create your <span className="bg-gradient-to-r from-primary-600 to-secondary-500 inline-block text-transparent bg-clip-text">account</span>
           </h2>
           <p className="mt-2 text-center text-sm text-gray-400">
             Join Tajiri to start trading tokenized stocks

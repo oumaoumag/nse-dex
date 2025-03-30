@@ -21,7 +21,7 @@ export default function AboutPage() {
           <div className="absolute bottom-0 -left-24 w-80 h-80 bg-primary-400 opacity-10 rounded-full blur-3xl"></div>
         </div>
         <div className="container mx-auto px-4 text-center relative">
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-primary-900 dark:text-white mb-6 animate-fadeIn">
+          <h1 className="text-3xl md:text-4xl font-bold text-primary-900 dark:text-white mb-4">
             About <span className="bg-gradient-to-r from-primary-600 to-secondary-500 inline-block text-transparent bg-clip-text">Tajiri</span>
           </h1>
           <p className="text-lg md:text-xl text-primary-700 dark:text-primary-300 max-w-3xl mx-auto animate-slideUp">
@@ -35,7 +35,7 @@ export default function AboutPage() {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-3xl font-bold text-primary-900 dark:text-white mb-6">Our Mission</h2>
+              <h2 className="text-2xl md:text-3xl font-bold text-primary-900 dark:text-white mb-4">Our <span className="bg-gradient-to-r from-primary-600 to-secondary-500 inline-block text-transparent bg-clip-text">Mission</span></h2>
               <p className="text-primary-600 dark:text-primary-400 mb-4">
                 At Tajiri, our mission is to transform how Africans access and engage with the stock market, making wealth creation opportunities more accessible, transparent, and efficient.
               </p>
