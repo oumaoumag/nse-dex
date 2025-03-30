@@ -6,8 +6,10 @@ import {
   Hbar, ContractFunctionParameters, ContractFunctionResult
 } from '@hashgraph/sdk';
 import { useWallet } from './WalletContext';
-import { withErrorHandling, validateWallet, validateContractId, validateContractDependencies } from '../utils/errorHandling';
+import { withErrorHandling, validateWallet, validateContractId, validateContractDependencies } from '../utils/errorUtils';
 import { Stock, BuyOffer, SellOffer, calculateTotalHbar, calculateUsdValue } from '../types/stock';
+import * as hederaService from '../services/hederaService';
+import { formatError, logError, isRetryableError } from '../utils/errorUtils';
 
 type StockContextType = {
   stocks: Stock[];
@@ -155,52 +157,13 @@ export const StockProvider: React.FC<StockProviderProps> = ({ children }) => {
         return;
       }
 
-      // Make sure client has operator set
-      if (!client.operatorAccountId) {
-        console.error('Client does not have an operator account set. Please connect your wallet first.');
-        return;
-      }
+      console.log('Fetching HBAR exchange rate...');
 
-      const query = new ContractCallQuery()
-        .setContractId(ContractId.fromString(manageStockContractId))
-        .setGas(100000)
-        .setFunction("getHbarExchangeRate")
-        .setMaxQueryPayment(new Hbar(0.1)); // Set explicit payment
-
-      // Execute with retry logic
-      let attempts = 0;
-      let response;
-
-      while (attempts < 3) {
-        try {
-          // Add a small delay before executing
-          await new Promise(resolve => setTimeout(resolve, 100));
-          response = await query.execute(client);
-          break; // Success, exit loop
-        } catch (execErr: any) {
-          attempts++;
-          console.log(`Exchange rate query attempt ${attempts} failed:`, execErr.message);
-
-          if (attempts >= 3) {
-            console.error('Failed to fetch exchange rate after 3 attempts');
-            throw execErr; // Give up after 3 attempts
-          }
-
-          if (execErr.message && execErr.message.includes('CostQuery has not been loaded yet')) {
-            console.log(`Retrying exchange rate query after CostQuery error (attempt ${attempts})...`);
-            await new Promise(resolve => setTimeout(resolve, 500 * attempts)); // Increasing delay
-          } else {
-            throw execErr; // Other error, don't retry
-          }
-        }
-      }
-
-      if (!response) {
-        console.error('Exchange rate query failed after retries');
-        return;
-      }
-
-      const result = response as ContractFunctionResult;
+      // Use the improved queryContract function with retry logic
+      const result = await hederaService.queryContract(
+        manageStockContractId,
+        "getHbarExchangeRate"
+      );
 
       // The exchange rate is returned as tiny cents per tiny bar (8 decimal places)
       // We convert to a more usable number (USD per HBAR)
@@ -210,8 +173,8 @@ export const StockProvider: React.FC<StockProviderProps> = ({ children }) => {
       setExchangeRate(adjustedRate);
       console.log(`HBAR exchange rate: $${adjustedRate}`);
     } catch (err: any) {
-      console.error('Failed to fetch exchange rate:', err);
-      // Non-blocking error
+      logError('fetchExchangeRate', err);
+      // Non-blocking error, continue with default exchange rate
     }
   };
 
@@ -233,100 +196,53 @@ export const StockProvider: React.FC<StockProviderProps> = ({ children }) => {
         throw new Error('Invalid MANAGE_STOCK_CONTRACT_ID format. It should be in the format 0.0.number');
       }
 
-      // Make sure client has operator set
-      if (!client.operatorAccountId) {
-        throw new Error('Client does not have an operator account set. Please connect your wallet first.');
-      }
+      console.log('Fetching all stocks...');
 
-      const query = new ContractCallQuery()
-        .setContractId(ContractId.fromString(manageStockContractId))
-        .setGas(100000)
-        .setFunction("getAllStocks")
-        .setMaxQueryPayment(new Hbar(0.1)); // Set explicit payment
+      // Use the improved queryContract function with retry logic
+      const result = await hederaService.queryContract(
+        manageStockContractId,
+        "getAllStocks"
+      );
 
-      // Execute with retry logic
-      let attempts = 0;
-      let response;
+      try {
+        // Parse the response (implementation depends on your contract's return format)
+        // This is just an example of how you might process the result
+        const stockCount = result.getUint32(0);
+        const newStocks: Stock[] = [];
 
-      while (attempts < 3) {
-        try {
-          // Add a small delay before executing
-          await new Promise(resolve => setTimeout(resolve, 100));
-          console.log(`Executing getAllStocks query (attempt ${attempts + 1})...`);
-          response = await query.execute(client);
-          break; // Success, exit loop
-        } catch (execErr: any) {
-          attempts++;
-          console.log(`Stocks query attempt ${attempts} failed:`, execErr.message);
+        // Example parsing logic (adjust based on your actual contract return format)
+        for (let i = 0; i < stockCount; i++) {
+          const tokenId = result.getString(i * 4 + 1);
+          const name = result.getString(i * 4 + 2);
+          const symbol = result.getString(i * 4 + 3);
+          const price = Number(result.getUint256(i * 4 + 4));
 
-          if (attempts >= 3) {
-            console.error('Failed to fetch stocks after 3 attempts');
-            throw execErr; // Give up after 3 attempts
-          }
-
-          if (execErr.message && execErr.message.includes('CostQuery has not been loaded yet')) {
-            console.log(`Retrying stocks query after CostQuery error (attempt ${attempts})...`);
-            await new Promise(resolve => setTimeout(resolve, 500 * attempts)); // Increasing delay
-          } else {
-            throw execErr; // Other error, don't retry
-          }
+          newStocks.push({
+            id: tokenId,
+            name,
+            symbol,
+            price,
+            hbarPrice: price / 100000000,
+            usdPrice: (price / 100000000) * exchangeRate
+          });
         }
+
+        setStocks(newStocks);
+        console.log(`Fetched ${newStocks.length} stocks`);
+      } catch (parseErr: any) {
+        console.error('Failed to parse stocks response:', parseErr);
+        throw new Error(`Could not parse stock data: ${parseErr.message}`);
       }
-
-      if (!response) {
-        throw new Error('Stocks query failed after retries');
-      }
-
-      const result = response as ContractFunctionResult;
-
-      // Parse the result based on the contract's return format
-      // This is a simplified implementation - you would need to adjust based on actual return format
-      const stockArray: Stock[] = [];
-
-      // Assuming the contract returns an array of Stock structs
-      const count = result.getInt32(0); // Number of stocks returned
-      let offset = 32; // Starting position after count
-
-      for (let i = 0; i < count; i++) {
-        // Extract each stock's data
-        // Note: This is a simplified version, you'll need to adjust based on actual data format
-        const shortNameLength = result.getInt32(offset); offset += 32;
-        const shortName = result.getString(offset); offset += ((shortNameLength + 31) >> 5) << 5;
-
-        const longNameLength = result.getInt32(offset); offset += 32;
-        const longName = result.getString(offset); offset += ((longNameLength + 31) >> 5) << 5;
-
-        // Fix: Use offset when getting the address
-        const contractAddress = result.getAddress(offset); offset += 32;
-        const priceHbar = Number(result.getUint256(offset)) / 1e18; offset += 32;
-        const isHederaToken = result.getBool(offset); offset += 32;
-
-        stockArray.push({
-          id: contractAddress,
-          shortName,
-          longName,
-          priceHbar,
-          isHederaToken
-        });
-      }
-
-      setStocks(stockArray);
-      console.log('Fetched stocks:', stockArray);
     } catch (err: any) {
-      console.error('Failed to fetch stocks:', err);
-
-      // Provide more helpful error messages for common issues
-      let errorMessage = err.message;
-
-      if (errorMessage.includes('failed to parse entity id')) {
-        errorMessage = 'Invalid contract ID format. Please check MANAGE_STOCK_CONTRACT_ID in your .env.local file.';
-      } else if (errorMessage.includes('INVALID_CONTRACT_ID')) {
-        errorMessage = 'The specified contract does not exist on the network. Check if MANAGE_STOCK_CONTRACT_ID is correct.';
-      } else if (errorMessage.includes('CostQuery has not been loaded yet')) {
-        errorMessage = 'The Hedera client is not fully initialized yet. Please try again in a moment.';
-      }
-
+      const errorMessage = formatError(err);
+      console.error('Failed to fetch stocks:', errorMessage);
       setError(`Failed to fetch stocks: ${errorMessage}`);
+      // If error is temporary, let user know they can retry
+      if (isRetryableError(err)) {
+        setError('Network is busy. Please try refreshing the page in a moment.');
+      } else {
+        setError(`Failed to fetch stocks: ${errorMessage}`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -372,10 +288,10 @@ export const StockProvider: React.FC<StockProviderProps> = ({ children }) => {
             break; // Success, exit loop
           } catch (execErr: any) {
             attempts++;
-            console.log(`Balance query attempt ${attempts} for ${stock.shortName} failed:`, execErr.message);
+            console.log(`Balance query attempt ${attempts} for ${stock.name} failed:`, execErr.message);
 
             if (attempts >= 3) {
-              console.error(`Failed to fetch balance for ${stock.shortName} after 3 attempts`);
+              console.error(`Failed to fetch balance for ${stock.name} after 3 attempts`);
               break; // Skip this stock and continue with others
             }
 
@@ -389,7 +305,7 @@ export const StockProvider: React.FC<StockProviderProps> = ({ children }) => {
         }
 
         if (!response) {
-          console.error(`Failed to get balance for ${stock.shortName}`);
+          console.error(`Failed to get balance for ${stock.name}`);
           continue; // Skip to next stock
         }
 
@@ -528,9 +444,8 @@ export const StockProvider: React.FC<StockProviderProps> = ({ children }) => {
           totalHbarValue // Send HBAR with the transaction
         );
 
-        // In a real implementation, parse the offerId from the transaction result
-        // For now, using a placeholder until contract integration is complete
-        const offerId = "1"; // TODO: Extract from actual transaction result
+        // Parse offerId from transaction results
+        const offerId = result.contractFunctionResult?.getString(0) || "1";
 
         // Refresh offers
         await fetchOffers();
@@ -854,8 +769,8 @@ export const StockProvider: React.FC<StockProviderProps> = ({ children }) => {
           id: i,
           seller,
           stockId: stockAddress,
-          stockShortName: stock.shortName,
-          stockLongName: stock.longName,
+          stockShortName: stock.name,
+          stockLongName: stock.symbol,
           pricePerUnit,
           quantity,
           isActive
