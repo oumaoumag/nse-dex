@@ -5,7 +5,7 @@ module.exports = {
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
-  darkMode: 'media',
+  darkMode: 'class',
   theme: {
     extend: {
       container: {
@@ -16,14 +16,14 @@ module.exports = {
         },
       },
       colors: {
-        // Safaricom-inspired color palette
+        // Safaricom Decode color palette
         primary: {
           50: '#f0f4ff',
           100: '#dee8ff',
           200: '#c1d4ff',
           300: '#9ab8ff',
           400: '#7593ff',
-          500: '#4f6ef7', // Main primary color
+          500: '#4f6ef7', // Secondary blue accent 
           600: '#4147e5',
           700: '#3a3dbf',
           800: '#2e2d8a',
@@ -36,7 +36,7 @@ module.exports = {
           200: '#a5f5d8',
           300: '#42e5ad',
           400: '#21cd8d',
-          500: '#00bd5f', // Safaricom-inspired green
+          500: '#00bd5f', // Main Safaricom green
           600: '#009652',
           700: '#007544',
           800: '#065d39',
@@ -55,6 +55,16 @@ module.exports = {
           800: '#983500',
           900: '#7c2e00',
           950: '#421500',
+        },
+        // New Safaricom Decode specific colors
+        decode: {
+          black: '#000000',
+          white: '#ffffff',
+          green: '#00bd5f',
+          blue: '#4f6ef7',
+          gray: '#f5f5f5',
+          darkgray: '#333333',
+          glassbg: 'rgba(255, 255, 255, 0.05)'
         },
         border: 'hsl(var(--border))',
         ring: 'hsl(var(--ring))',

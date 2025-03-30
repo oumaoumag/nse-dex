@@ -1,7 +1,17 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
+import { useWallet } from '@/contexts/WalletContext';
 
 export default function AboutPage() {
+  const { connectWallet, isLoading } = useWallet();
+
+  const handleConnectWallet = (e: React.MouseEvent) => {
+    e.preventDefault();
+    connectWallet();
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section with gradient and decorative elements */}
@@ -164,12 +174,13 @@ export default function AboutPage() {
           <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
             Be part of the movement to democratize wealth creation in Africa through blockchain technology.
           </p>
-          <Link
-            href="/marketplace"
-            className="inline-flex items-center justify-center rounded-md bg-white px-8 py-3 text-lg font-medium text-primary-600 shadow-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 transition-all"
+          <button
+            onClick={handleConnectWallet}
+            disabled={isLoading}
+            className="inline-flex items-center justify-center rounded-md bg-white px-8 py-3 text-lg font-medium text-primary-600 shadow-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Launch App
-          </Link>
+            {isLoading ? 'Connecting...' : 'Launch App'}
+          </button>
         </div>
       </section>
     </div>

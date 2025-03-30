@@ -1,30 +1,55 @@
-# Tajiri - Blockchain-Based Stock Trading Platform
+# Tajiri v2 - Smart Wallet Platform
 
-Tajiri is a cutting-edge, blockchain-based financial platform designed to tokenize and trade stocks from the Nairobi Securities Exchange (NSE), with a mission to democratize wealth creation in Africa. Deployed on the Hedera blockchain, this app leverages stablecoins for transactions, incorporates account abstraction for user-friendliness, and features a modern Next.js frontend.
+Tajiri is a smart wallet platform built on the Hedera network that enables users to create and manage smart contract wallets with advanced features like batched transactions, gasless transactions (fee abstraction), and social recovery.
 
 ## Features
 
-- **Hedera Blockchain**: Built on Hedera Hashgraph for high throughput, low fees, and enterprise-grade reliability
-- **Stablecoin Trading**: Purchase and trade tokenized NSE stocks using stablecoins (USDC, USDT)
-- **Account Abstraction**: Simplified blockchain interactions, making the app intuitive for all users
-- **Advanced Trading Tools**: Interactive charts, technical analysis, and market data
-- **Lending Protocol**: Borrow against tokenized stocks or lend stablecoins for interest
-- **Educational Resources**: Comprehensive learning tools for investors of all experience levels
+- **Smart Wallet Creation**: Create a smart contract wallet that gives you advanced functionality beyond standard accounts
+- **Batched Transactions**: Execute multiple transactions in a single operation to save time and gas
+- **Gasless Transactions**: Execute transactions without paying gas fees (relayer pays on your behalf)
+- **Social Recovery**: Add guardians who can help you recover access to your wallet if you lose your private key
+- **Token Management**: Associate, transfer, and manage Hedera tokens with ease
 
-## Tech Stack
+## Project Structure
 
-- **Frontend**: Next.js with TypeScript, Tailwind CSS
-- **Blockchain**: Hedera Hashgraph with Hedera Token Service (HTS) and Smart Contract Service (HSCS)
-- **Smart Contracts**: Solidity for trading and lending logic
-- **Libraries**: @hashgraph/sdk, react-chartjs-2
+The project is divided into two main parts:
 
-## Getting Started
+- **Frontend** (`/frontend`): Next.js web application
+- **Contracts** (`/contracts`): Solidity smart contracts
+
+### Frontend Directory Structure
+
+- `/src/components`: React components
+- `/src/contexts`: React contexts for state management
+- `/src/services`: Services for interacting with Hedera and contracts
+- `/src/utils`: Utility functions
+- `/src/app`: Next.js application and page routes
+
+### Smart Contracts
+
+- `SmartWallet.sol`: The main smart wallet contract
+- `SmartWalletFactory.sol`: Factory contract for deploying new smart wallets
+- `ISmartWallet.sol`: Interface for smart walletp
+
+## Setup and Installation
 
 ### Prerequisites
 
-- Node.js 18.x or higher
+- Node.js 18+
 - npm or yarn
-- Hedera Testnet account (for development)
+- Hedera testnet account and private key
+
+### Environment Variables
+
+Create a `.env.local` file in the frontend directory with the following variables:
+
+```
+NEXT_PUBLIC_HEDERA_NETWORK=testnet
+NEXT_PUBLIC_MY_ACCOUNT_ID=your-account-id
+NEXT_PUBLIC_MY_PRIVATE_KEY=your-private-key
+NEXT_PUBLIC_FACTORY_CONTRACT_ID=your-factory-contract-id
+NEXT_PUBLIC_RELAYER_URL=your-relayer-url
+```
 
 ### Installation
 
@@ -34,48 +59,56 @@ Tajiri is a cutting-edge, blockchain-based financial platform designed to tokeni
    cd tajiri-v2
    ```
 
-2. Install dependencies:
+2. Install frontend dependencies:
    ```bash
-   # Install frontend dependencies
    cd frontend
    npm install
    ```
 
-3. Configure environment variables:
-   Create a `.env.local` file in the frontend directory with the following:
-   ```
-   NEXT_PUBLIC_HEDERA_NETWORK=testnet
-   NEXT_PUBLIC_MY_ACCOUNT_ID=your-account-id
-   NEXT_PUBLIC_MY_PRIVATE_KEY=your-private-key
-   ```
-
-4. Start the development server:
+3. Start the development server:
    ```bash
    npm run dev
    ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
+### Deploying Smart Contracts
 
-## Project Structure
+1. Install contract dependencies:
+   ```bash
+   cd contracts
+   npm install
+   ```
 
-```
-tajiri-v2/
-├── frontend/                  # Next.js frontend application
-│   ├── src/
-│   │   ├── app/               # App router pages
-│   │   ├── components/        # Reusable UI components
-│   │   ├── lib/               # Utility functions and libraries
-│   ├── public/                # Static assets
-├── contracts/                 # Solidity smart contracts (to be added)
-├── README.md                  # Project documentation
-```
+2. Compile the contracts:
+   ```bash
+   npx hardhat compile
+   ```
 
-## Roadmap
+3. Deploy to Hedera testnet:
+   ```bash
+   npx hardhat run scripts/deploy.js --network testnet
+   ```
 
-- **Q4 2024**: Launch Next.js frontend, set up Hedera Testnet environment
-- **Q1 2025**: Tokenize first batch of NSE stocks, launch trading marketplace
-- **Q2-Q3 2025**: Launch lending protocol, add advanced trading tools
-- **Q4 2025 & Beyond**: Regional expansion, add more asset classes
+## Relayer Setup
+
+The relayer is a service that enables gasless transactions. It verifies user signatures and submits transactions on their behalf.
+
+1. Set up your relayer environment variables in `.env.local`:
+   ```
+   RELAYER_ACCOUNT_ID=your-relayer-account-id
+   RELAYER_PRIVATE_KEY=your-relayer-private-key
+   ```
+
+2. The API route for the relayer is defined in `frontend/src/app/api/relayer/route.ts`
+
+## Usage
+
+1. Connect your wallet
+2. Create a smart wallet if you don't have one
+3. Use the various features:
+   - Execute transactions from your smart wallet
+   - Add guardians for social recovery
+   - Batch multiple transactions
+   - Execute gasless transactions
 
 ## Contributing
 
@@ -83,14 +116,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Contact
-
-For inquiries, please contact [your-email@example.com].
-
-## Acknowledgements
-
-- Nairobi Securities Exchange (NSE)
-- Hedera Hashgraph
-- All contributors and supporters of the project
+This project is licensed under the MIT License.

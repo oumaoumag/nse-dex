@@ -2,6 +2,15 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
+import WalletLayout from "@/components/WalletLayout";
+import NotificationProvider from "@/components/NotificationProvider";
+import { AuthProvider } from "@/providers/AuthProvider";
+import { WalletProvider } from '@/contexts/WalletContext';
+import { StockProvider } from '@/contexts/StockContext';
+import { LendingProvider } from '@/contexts/LendingContext';
+import { KYCProvider } from '@/contexts/KYCContext';
+import { Toaster } from 'react-hot-toast';
+import Header from "@/components/Header";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -9,8 +18,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Tajiri - Tokenized Stock Trading on Hedera",
-  description: "A blockchain-based financial platform for tokenizing and trading stocks from the Nairobi Securities Exchange (NSE).",
+  title: "Tajiri - African Stock Trading Platform",
+  description: "Trade tokenized stocks from the Nairobi Securities Exchange using blockchain technology.",
   icons: {
     icon: '/favicon.svg',
   },
@@ -22,72 +31,92 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body
-        className={`${inter.variable} antialiased`}
+        className={`${inter.variable} antialiased bg-decode-black text-decode-white`}
       >
-        <header className="sticky top-0 z-50 w-full border-b border-primary-100 bg-white/90 backdrop-blur-sm dark:border-primary-900 dark:bg-primary-950/90">
-          <div className="container mx-auto flex h-16 items-center justify-between px-4">
-            <div className="flex items-center gap-2">
-              <Link href="/" className="flex items-center gap-2">
-                <img src="/assets/logo/tajiri-logo.svg" alt="Tajiri Logo" className="h-8" />
-                <span className="text-xl font-bold text-primary-800 dark:text-primary-100 bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">Tajiri</span>
-              </Link>
-            </div>
-            <nav className="flex items-center gap-4 md:gap-6">
-              <Link href="/marketplace" className="text-sm font-medium text-primary-800 dark:text-primary-200 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-                How it works
-              </Link>
-              <Link href="/marketplace" className="text-sm font-medium text-primary-800 dark:text-primary-200 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-                P2P market
-              </Link>
-              <Link href="/marketplace" className="text-sm font-medium text-primary-800 dark:text-primary-200 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-                Mint
-              </Link>
-              <Link href="/marketplace" className="text-sm font-medium text-primary-800 dark:text-primary-200 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-                Redeem
-              </Link>
-              <Link 
-                href="/marketplace" 
-                className="rounded-md bg-gradient-to-r from-primary-600 to-secondary-600 px-5 py-2 text-sm font-medium text-white hover:from-primary-700 hover:to-secondary-700 transition-all shadow-sm"
-              >
-                Connect Wallet
-              </Link>
-            </nav>
-          </div>
-        </header>
-        <main>
-          {children}
-        </main>
-        <footer className="border-t border-primary-100 py-8 dark:border-primary-900 bg-primary-50 dark:bg-primary-950">
-          <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-              <div>
-                <h3 className="text-lg font-semibold mb-4 text-primary-800 dark:text-primary-200">About Tajiri</h3>
-                <p className="text-sm text-primary-600 dark:text-primary-400">
-                  A blockchain-based financial platform that tokenizes and trades stocks from the Nairobi Securities Exchange (NSE).
-                </p>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-4 text-primary-800 dark:text-primary-200">Quick Links</h3>
-                <ul className="space-y-2 text-sm">
-                  <li><Link href="/" className="text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200">Home</Link></li>
-                  <li><Link href="/about" className="text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200">About</Link></li>
-                  <li><Link href="/marketplace" className="text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200">Marketplace</Link></li>
-                </ul>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-4 text-primary-800 dark:text-primary-200">Contact</h3>
-                <p className="text-sm text-primary-600 dark:text-primary-400">
-                  For inquiries, please contact us at <a href="mailto:info@tajiri.co.ke" className="text-secondary-600 hover:text-secondary-700">info@tajiri.co.ke</a>
-                </p>
-              </div>
-            </div>
-            <div className="pt-8 border-t border-primary-100 dark:border-primary-900 text-center text-sm text-primary-500 dark:text-primary-500">
-              <p>© {new Date().getFullYear()} Tajiri. All rights reserved.</p>
-            </div>
-          </div>
-        </footer>
+        <AuthProvider>
+          <NotificationProvider>
+            <WalletProvider>
+              <KYCProvider>
+                <StockProvider>
+                  <LendingProvider>
+                    <WalletLayout>
+                      <div className="flex flex-col min-h-screen">
+                        <Header />
+
+                        {/* Main content */}
+                        <main className="flex-grow">
+                          {children}
+                        </main>
+
+                        {/* Footer */}
+                        <footer className="border-t border-decode-green/20 py-16 bg-black">
+                          <div className="container mx-auto px-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10">
+                              <div>
+                                <h3 className="text-lg font-bold mb-6 text-decode-white flex items-center">
+                                  <span className="inline-block w-6 h-px bg-decode-green mr-3"></span>
+                                  ABOUT TAJIRI
+                                </h3>
+                                <p className="text-sm text-gray-400 leading-relaxed">
+                                  A blockchain-based financial platform that tokenizes and trades stocks from the Nairobi Securities Exchange (NSE), built on Hedera's secure and efficient infrastructure.
+                                </p>
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-bold mb-6 text-decode-white flex items-center">
+                                  <span className="inline-block w-6 h-px bg-decode-green mr-3"></span>
+                                  QUICK LINKS
+                                </h3>
+                                <ul className="space-y-4 text-sm">
+                                  <li><Link href="/" className="text-gray-400 hover:text-decode-green transition-colors">Home</Link></li>
+                                  <li><Link href="/marketplace" className="text-gray-400 hover:text-decode-green transition-colors">Marketplace</Link></li>
+                                  <li><Link href="/trading" className="text-gray-400 hover:text-decode-green transition-colors">P2P Trading</Link></li>
+                                  <li><Link href="/wallet" className="text-gray-400 hover:text-decode-green transition-colors">Portfolio</Link></li>
+                                </ul>
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-bold mb-6 text-decode-white flex items-center">
+                                  <span className="inline-block w-6 h-px bg-decode-green mr-3"></span>
+                                  CONTACT
+                                </h3>
+                                <p className="text-sm text-gray-400 leading-relaxed">
+                                  For inquiries, please contact us at <a href="mailto:info@tajiri.co.ke" className="text-decode-green hover:underline">info@tajiri.co.ke</a>
+                                </p>
+
+                                <div className="mt-6 flex items-center gap-4">
+                                  <a href="#" className="text-gray-400 hover:text-decode-green transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                      <path d="M16 8.049c0-4.446-3.582-8.05-8-8.05C3.58 0-.002 3.603-.002 8.05c0 4.017 2.926 7.347 6.75 7.951v-5.625h-2.03V8.05H6.75V6.275c0-2.017 1.195-3.131 3.022-3.131.876 0 1.791.157 1.791.157v1.98h-1.009c-.993 0-1.303.621-1.303 1.258v1.51h2.218l-.354 2.326H9.25V16c3.824-.604 6.75-3.934 6.75-7.951z" />
+                                    </svg>
+                                  </a>
+                                  <a href="#" className="text-gray-400 hover:text-decode-green transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                      <path d="M5.026 15c6.038 0 9.341-5.003 9.341-9.334 0-.14 0-.282-.006-.422A6.685 6.685 0 0 0 16 3.542a6.658 6.658 0 0 1-1.889.518 3.301 3.301 0 0 0 1.447-1.817 6.533 6.533 0 0 1-2.087.793A3.286 3.286 0 0 0 7.875 6.03a9.325 9.325 0 0 1-6.767-3.429 3.289 3.289 0 0 0 1.018 4.382A3.323 3.323 0 0 1 .64 6.575v.045a3.288 3.288 0 0 0 2.632 3.218 3.203 3.203 0 0 1-.865.115 3.23 3.23 0 0 1-.614-.057 3.283 3.283 0 0 0 3.067 2.277A6.588 6.588 0 0 1 .78 13.58a6.32 6.32 0 0 1-.78-.045A9.344 9.344 0 0 0 5.026 15z" />
+                                    </svg>
+                                  </a>
+                                  <a href="#" className="text-gray-400 hover:text-decode-green transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+                                    </svg>
+                                  </a>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="pt-8 border-t border-decode-green/20 text-center text-sm text-gray-500">
+                              <p>© {new Date().getFullYear()} Tajiri. Powered by Hedera. All rights reserved.</p>
+                            </div>
+                          </div>
+                        </footer>
+                      </div>
+                    </WalletLayout>
+                    <Toaster position="top-right" />
+                  </LendingProvider>
+                </StockProvider>
+              </KYCProvider>
+            </WalletProvider>
+          </NotificationProvider>
+        </AuthProvider>
       </body>
     </html>
   );
