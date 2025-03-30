@@ -2,12 +2,46 @@ import {
     ContractId,
     ContractExecuteTransaction,
     ContractFunctionParameters,
-    PrivateKey
+    PrivateKey,
+    ContractCallQuery
 } from '@hashgraph/sdk';
-import { getClient, executeContract } from './hederaService';
+import { getClient, executeContract, queryContract } from './hederaService';
 import { signTransaction } from '../utils/signatureUtils';
 import { encodeFunctionCall } from '../utils/contractUtils';
 import axios from 'axios';
+
+/**
+ * Finds a smart wallet for the specified account owner
+ * @param accountId Account ID to find wallet for
+ * @returns Contract ID of the wallet or null if not found
+ */
+export async function findSmartWalletForOwner(accountId: string): Promise<string | null> {
+    const factoryContractId = process.env.NEXT_PUBLIC_FACTORY_CONTRACT_ID || '';
+    if (!factoryContractId) {
+        throw new Error('Factory contract ID not configured');
+    }
+
+    try {
+        // Query the factory contract to find the wallet address
+        const result = await queryContract(
+            factoryContractId,
+            "getWalletForOwner",
+            new ContractFunctionParameters().addString(accountId)
+        );
+
+        // Extract address from result
+        const address = result.getAddress(0);
+
+        if (address && address !== '0x0000000000000000000000000000000000000000') {
+            return ContractId.fromSolidityAddress(address).toString();
+        }
+
+        return null;
+    } catch (err) {
+        console.error('Error finding wallet:', err);
+        return null;
+    }
+}
 
 /**
  * Creates a smart wallet for the specified account

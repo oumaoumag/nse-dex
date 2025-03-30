@@ -1,244 +1,205 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStock } from '../contexts/StockContext';
 import { Stock } from '@/types/stock';
-import { useWallet } from '../contexts/WalletContext';
+import StockMintRedeem from './StockTokens/StockMintRedeem';
+import Link from 'next/link';
 
 const StockMarketplace: React.FC = () => {
-  const {
-    stocks,
-    userBalances,
-    isLoading,
-    error,
-    mintStock,
-    redeemStock,
-    exchangeRate
-  } = useStock();
+  const { stocks, isLoading, error, exchangeRate } = useStock();
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [sortOption, setSortOption] = useState<'name' | 'priceAsc' | 'priceDesc'>('name');
 
-  const { isConnected, smartWalletId } = useWallet();
-  const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
-  const [transactionType, setTransactionType] = useState<'mint' | 'redeem'>('mint');
-  const [amount, setAmount] = useState<number>(1);
-  const [transactionStatus, setTransactionStatus] = useState<string | null>(null);
-
-  // Calculate the HBAR or token amount based on stock price and input amount
-  const calculateAmount = (stock: Stock, inputAmount: number): number => {
-    if (transactionType === 'mint') {
-      // When minting, show how many tokens they'll receive
-      return inputAmount / stock.priceHbar;
-    } else {
-      // When redeeming, show how many HBAR they'll receive
-      return inputAmount * stock.priceHbar;
-    }
-  };
-
-  // Calculate USD value based on exchange rate
-  const calculateUsdValue = (hbarAmount: number): number => {
-    return hbarAmount * exchangeRate;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!isConnected || !smartWalletId) {
-      setTransactionStatus('Please connect your wallet and create a smart wallet first');
-      return;
-    }
-
-    if (!selectedStock) {
-      setTransactionStatus('Please select a stock');
-      return;
-    }
-
-    try {
-      setTransactionStatus('Processing transaction...');
-
-      let success = false;
-      if (transactionType === 'mint') {
-        // Convert amount to HBAR for minting
-        const hbarAmount = amount;
-        success = await mintStock(selectedStock.id, hbarAmount);
-      } else {
-        // Amount is in tokens for redemption
-        success = await redeemStock(selectedStock.id, amount);
+  // Apply search filter and sorting
+  const filteredStocks = stocks
+    .filter(stock =>
+      stock.shortName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      stock.longName.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      switch (sortOption) {
+        case 'name':
+          return a.shortName.localeCompare(b.shortName);
+        case 'priceAsc':
+          return a.priceHbar - b.priceHbar;
+        case 'priceDesc':
+          return b.priceHbar - a.priceHbar;
+        default:
+          return 0;
       }
-
-      if (success) {
-        setTransactionStatus(`${transactionType === 'mint' ? 'Mint' : 'Redeem'} transaction completed successfully!`);
-        // Reset form after successful transaction
-        setAmount(1);
-      } else {
-        setTransactionStatus(`Transaction failed. Please try again.`);
-      }
-
-      // Clear status after 3 seconds
-      setTimeout(() => {
-        setTransactionStatus(null);
-      }, 3000);
-    } catch (error: any) {
-      setTransactionStatus(`Transaction failed: ${error.message}`);
-      console.error('Transaction failed:', error);
-    }
-  };
-
-  const getStockBalance = (stockId: string): string => {
-    return userBalances[stockId] || '0';
-  };
+    });
 
   return (
-    <div className="bg-white dark:bg-primary-900 rounded-xl shadow-md overflow-hidden">
-      <div className="p-6">
-        <h2 className="text-2xl font-bold text-primary-900 dark:text-white mb-6">Stock Marketplace</h2>
+    <div className="space-y-6">
+      {/* Stock Minting & Redemption */}
+      <StockMintRedeem />
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 rounded-md">
-            {error}
-          </div>
-        )}
-
-        {transactionStatus && (
-          <div className={`mb-4 p-3 rounded-md ${transactionStatus.includes('failed')
-              ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
-              : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
-            }`}>
-            {transactionStatus}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {isLoading ? (
-            <div className="col-span-3 flex justify-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+      {/* Stock Marketplace */}
+      <div className="bg-white dark:bg-primary-900 rounded-xl shadow-md overflow-hidden">
+        <div className="p-6">
+          {/* Market Stats Overview */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div className="bg-primary-50 dark:bg-primary-800/50 p-3 rounded-lg">
+              <p className="text-xs text-primary-500 dark:text-primary-400">NSE Stocks Available</p>
+              <p className="text-xl font-bold text-primary-900 dark:text-white">{stocks.length}</p>
             </div>
-          ) : stocks.length === 0 ? (
-            <div className="col-span-3 text-center text-primary-600 dark:text-primary-400">
-              No stocks available. Please check back later.
+            <div className="bg-primary-50 dark:bg-primary-800/50 p-3 rounded-lg">
+              <p className="text-xs text-primary-500 dark:text-primary-400">HBAR Exchange Rate</p>
+              <p className="text-xl font-bold text-primary-900 dark:text-white">${exchangeRate.toFixed(4)}</p>
             </div>
-          ) : (
-            stocks.map(stock => (
-              <div
-                key={stock.id}
-                className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${selectedStock?.id === stock.id
-                    ? 'border-secondary-500 bg-secondary-50 dark:bg-secondary-900/20'
-                    : 'border-primary-200 dark:border-primary-700 hover:border-secondary-300 dark:hover:border-secondary-700'
-                  }`}
-                onClick={() => setSelectedStock(stock)}
+            <div className="bg-primary-50 dark:bg-primary-800/50 p-3 rounded-lg">
+              <p className="text-xs text-primary-500 dark:text-primary-400">Trading Volume (24h)</p>
+              <p className="text-xl font-bold text-primary-900 dark:text-white">8,452 HBAR</p>
+            </div>
+            <div className="bg-primary-50 dark:bg-primary-800/50 p-3 rounded-lg">
+              <p className="text-xs text-primary-500 dark:text-primary-400">Active Traders</p>
+              <p className="text-xl font-bold text-primary-900 dark:text-white">124</p>
+            </div>
+          </div>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-primary-900 dark:text-white">Stock Marketplace</h2>
+            <div className="flex space-x-2">
+              <Link 
+                href="/trading" 
+                className="px-3 py-1.5 bg-secondary-600 hover:bg-secondary-700 text-white text-sm font-medium rounded-md transition-colors"
               >
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-lg font-bold text-primary-900 dark:text-white">{stock.longName}</h3>
-                  <span className="text-sm font-medium bg-primary-100 dark:bg-primary-800 text-primary-800 dark:text-primary-300 px-2 py-1 rounded">
-                    {stock.shortName}
-                  </span>
-                </div>
+                Advanced Trading
+              </Link>
+              <Link 
+                href="/market/watchlist" 
+                className="px-3 py-1.5 border border-secondary-500 text-secondary-600 dark:text-secondary-400 text-sm font-medium rounded-md hover:bg-secondary-50 dark:hover:bg-secondary-900/20 transition-colors"
+              >
+                My Watchlist
+              </Link>
+            </div>
+          </div>
 
-                <div className="flex justify-between items-center mb-3">
-                  <p className="text-primary-600 dark:text-primary-400">Price:</p>
-                  <p className="font-semibold text-primary-900 dark:text-white">
-                    {stock.priceHbar.toFixed(2)} HBAR
-                    <span className="text-xs ml-1 text-primary-500 dark:text-primary-500">
-                      (${calculateUsdValue(stock.priceHbar).toFixed(2)})
-                    </span>
-                  </p>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <p className="text-primary-600 dark:text-primary-400">Your Balance:</p>
-                  <p className="font-semibold text-primary-900 dark:text-white">
-                    {getStockBalance(stock.id)} tokens
-                  </p>
-                </div>
-
-                <div className="mt-4 text-xs text-primary-500 dark:text-primary-400">
-                  {stock.isHederaToken ? "Hedera Token Service" : "ERC20 Token"}
-                </div>
-              </div>
-            ))
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 rounded-md">
+              {error}
+            </div>
           )}
-        </div>
 
-        {selectedStock && (
-          <form onSubmit={handleSubmit} className="bg-primary-50 dark:bg-primary-800 rounded-lg p-4">
-            <h3 className="text-lg font-bold text-primary-900 dark:text-white mb-4">
-              {selectedStock.longName} ({selectedStock.shortName})
-            </h3>
-
-            <div className="flex mb-4">
-              <button
-                type="button"
-                className={`flex-1 py-2 px-4 text-center ${transactionType === 'mint'
-                    ? 'bg-secondary-600 text-white'
-                    : 'bg-primary-200 dark:bg-primary-700 text-primary-800 dark:text-primary-300'
-                  } rounded-l-md transition-colors`}
-                onClick={() => setTransactionType('mint')}
-              >
-                Mint Tokens
-              </button>
-              <button
-                type="button"
-                className={`flex-1 py-2 px-4 text-center ${transactionType === 'redeem'
-                    ? 'bg-secondary-600 text-white'
-                    : 'bg-primary-200 dark:bg-primary-700 text-primary-800 dark:text-primary-300'
-                  } rounded-r-md transition-colors`}
-                onClick={() => setTransactionType('redeem')}
-              >
-                Redeem Tokens
-              </button>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-primary-700 dark:text-primary-300 mb-1">
-                {transactionType === 'mint' ? 'HBAR Amount to Spend' : 'Token Amount to Redeem'}
-              </label>
+          {/* Search and Filter */}
+          <div className="flex flex-wrap gap-3 mb-6">
+            <div className="flex-1 min-w-[200px] relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-4 w-4 text-primary-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
               <input
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={amount}
-                onChange={(e) => setAmount(Math.max(0.01, parseFloat(e.target.value) || 0))}
-                className="w-full p-2 border border-primary-300 dark:border-primary-600 rounded-md bg-white dark:bg-primary-900 text-primary-900 dark:text-white"
+                type="text"
+                placeholder="Search stocks by name or symbol..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full rounded-md border border-primary-300 dark:border-primary-700 bg-white dark:bg-primary-800 
+                pl-10 pr-4 py-2 text-sm text-primary-900 dark:text-white shadow-sm focus:outline-none focus:ring-1 focus:ring-secondary-500"
               />
             </div>
-
-            <div className="mb-6 p-3 bg-primary-100 dark:bg-primary-700 rounded-md">
-              {transactionType === 'mint' ? (
-                <>
-                  <p className="text-sm text-primary-700 dark:text-primary-300">
-                    You will receive approximately:
-                  </p>
-                  <p className="text-lg font-bold text-primary-900 dark:text-white">
-                    {calculateAmount(selectedStock, amount).toFixed(4)} {selectedStock.shortName} tokens
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm text-primary-700 dark:text-primary-300">
-                    You will receive approximately:
-                  </p>
-                  <p className="text-lg font-bold text-primary-900 dark:text-white">
-                    {calculateAmount(selectedStock, amount).toFixed(4)} HBAR
-                    <span className="text-sm ml-1 text-primary-500 dark:text-primary-400">
-                      (${calculateUsdValue(calculateAmount(selectedStock, amount)).toFixed(2)})
-                    </span>
-                  </p>
-                </>
-              )}
+            <div className="flex space-x-2">
+              <select
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value as 'name' | 'priceAsc' | 'priceDesc')}
+                className="rounded-md border border-primary-300 dark:border-primary-700 bg-white dark:bg-primary-800 
+                px-3 py-2 text-sm text-primary-900 dark:text-white shadow-sm focus:outline-none focus:ring-1 focus:ring-secondary-500"
+              >
+                <option value="name">Sort by Name</option>
+                <option value="priceAsc">Price: Low to High</option>
+                <option value="priceDesc">Price: High to Low</option>
+              </select>
             </div>
+          </div>
 
-            <button
-              type="submit"
-              disabled={isLoading || !isConnected || !smartWalletId}
-              className="w-full py-3 px-4 bg-gradient-to-r from-secondary-600 to-secondary-700 hover:from-secondary-700 hover:to-secondary-800 text-white font-medium rounded-md shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              {isLoading
-                ? 'Processing...'
-                : transactionType === 'mint'
-                  ? 'Mint Tokens'
-                  : 'Redeem Tokens'
-              }
-            </button>
-          </form>
-        )}
+          {/* Loading State */}
+          {isLoading ? (
+            <div className="flex justify-center py-10">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+            </div>
+          ) : (
+            <>
+              {/* Stock List */}
+              {filteredStocks.length === 0 ? (
+                <div className="text-center py-16 text-primary-500 dark:text-primary-400">
+                  <svg className="mx-auto h-12 w-12 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="mt-4 text-lg">No stocks found matching your search.</p>
+                  <button 
+                    onClick={() => setSearchTerm('')}
+                    className="mt-4 px-4 py-2 text-sm font-medium text-white bg-secondary-600 rounded-md hover:bg-secondary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary-500"
+                  >
+                    Clear Search
+                  </button>
+                </div>
+              ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-primary-200 dark:divide-primary-700">
+                        <thead className="bg-primary-50 dark:bg-primary-800">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-primary-500 dark:text-primary-400 uppercase tracking-wider">Stock</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-primary-500 dark:text-primary-400 uppercase tracking-wider">Token Price</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-primary-500 dark:text-primary-400 uppercase tracking-wider">USD Value</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-primary-500 dark:text-primary-400 uppercase tracking-wider">Token Type</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-primary-500 dark:text-primary-400 uppercase tracking-wider">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-primary-900 divide-y divide-primary-200 dark:divide-primary-800">
+                          {filteredStocks.map((stock) => (
+                            <tr key={stock.id} className="hover:bg-primary-50 dark:hover:bg-primary-800/40">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="flex-shrink-0 h-8 w-8 bg-primary-100 dark:bg-primary-800 rounded-full flex items-center justify-center text-xs font-medium text-primary-800 dark:text-primary-200">
+                                    {stock.shortName.substring(0, 2)}
+                                  </div>
+                                  <div className="ml-3">
+                                    <div className="text-sm font-medium text-primary-900 dark:text-white">
+                                      {stock.shortName}
+                                </div>
+                                <div className="text-xs text-primary-500 dark:text-primary-400">
+                                  {stock.longName}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-primary-900 dark:text-white">
+                            {stock.priceHbar.toFixed(6)} HBAR
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-primary-900 dark:text-white">
+                            ${(stock.priceHbar * exchangeRate).toFixed(2)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 text-xs rounded-full ${stock.isHederaToken
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                              : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                              }`}>
+                              {stock.isHederaToken ? 'Hedera Token Service' : 'ERC20 Token'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex justify-end space-x-2">
+                              <button className="text-secondary-600 hover:text-secondary-900 dark:text-secondary-400 dark:hover:text-secondary-300">
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                </svg>
+                              </button>
+                              <button className="text-primary-600 hover:text-primary-900 dark:text-primary-400 dark:hover:text-primary-300">
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                        </tbody>
+                      </table>
+                    </div>
+                )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

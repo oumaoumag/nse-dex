@@ -163,7 +163,9 @@ export default function MarketData() {
 
     return (
         <div className="max-w-6xl mx-auto p-6">
-            <h1 className="text-3xl font-bold mb-8">Market Data</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-primary-900 dark:text-white mb-4">
+                Market <span className="bg-gradient-to-r from-primary-600 to-secondary-500 inline-block text-transparent bg-clip-text">Data</span>
+            </h1>
 
             {/* Market Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">

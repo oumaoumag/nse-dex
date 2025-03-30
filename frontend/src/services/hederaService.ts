@@ -8,46 +8,26 @@ import {
     ContractExecuteTransaction,
     ContractFunctionParameters,
     ContractFunctionResult,
-    ContractId
+    ContractId,
+    LedgerId
 } from '@hashgraph/sdk';
+import { createClientFromEnv } from '../utils/hederaConfig';
 
 // Singleton client instance
 let hederaClient: Client | null = null;
 
 /**
- * Initializes and returns a Hedera client
+ * Builds and initializes a Hedera client based on environment settings
  * @returns Initialized Hedera client
  */
 export function getClient(): Client {
     if (hederaClient) return hederaClient;
 
-    const network = process.env.NEXT_PUBLIC_HEDERA_NETWORK || 'testnet';
-    const myAccountId = process.env.NEXT_PUBLIC_MY_ACCOUNT_ID;
-    const myPrivateKey = process.env.NEXT_PUBLIC_MY_PRIVATE_KEY;
-
-    if (!myAccountId || !myPrivateKey) {
-        throw new Error('Environment variables for Hedera client not set');
-    }
-
     try {
-        // Create new client based on network
-        if (network === 'testnet') {
-            hederaClient = Client.forTestnet();
-        } else {
-            hederaClient = Client.forMainnet();
-        }
+        // Create client using the configuration utility
+        hederaClient = createClientFromEnv();
 
-        // Parse account ID and private key
-        const accountId = AccountId.fromString(myAccountId);
-        const privateKey = PrivateKey.fromString(myPrivateKey);
-
-        // Set operator
-        hederaClient.setOperator(accountId, privateKey);
-
-        // Set default max query payment to prevent CostQuery errors
-        hederaClient.setDefaultMaxQueryPayment(new Hbar(0.5));
-
-        console.log('Hedera client initialized for', network, 'with account', myAccountId);
+        console.log(`Hedera client initialized for ${process.env.NEXT_PUBLIC_HEDERA_NETWORK || 'testnet'}`);
 
         return hederaClient;
     } catch (err) {
@@ -111,7 +91,7 @@ export async function queryContract(
     let query = new ContractCallQuery()
         .setContractId(ContractId.fromString(contractId))
         .setGas(100000)
-        .setMaxQueryPayment(new Hbar(0.1));
+        .setMaxQueryPayment(new Hbar(0.5));
 
     if (params) {
         query = query.setFunction(functionName, params);
@@ -121,14 +101,16 @@ export async function queryContract(
 
     // Add retry logic for CostQuery issues
     let attempts = 0;
-    const maxAttempts = 5;
+    const maxAttempts = 8;
     let lastError: any;
 
     while (attempts < maxAttempts) {
         try {
-            // Small delay between attempts that increases with each retry
+            // Exponential backoff delay between attempts
             if (attempts > 0) {
-                await new Promise(resolve => setTimeout(resolve, 500 * attempts));
+                const delay = Math.min(2000 * Math.pow(1.5, attempts - 1), 15000);
+                console.log(`Query attempt ${attempts} failed. Retrying after ${delay}ms delay...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
 
             const response = await query.execute(client);
@@ -137,9 +119,15 @@ export async function queryContract(
             attempts++;
             lastError = err;
 
-            // Only retry for CostQuery errors
-            if (err.message && err.message.includes('CostQuery has not been loaded yet')) {
-                console.log(`Query attempt ${attempts} failed with CostQuery error. Retrying...`);
+            // Retry for all network-related errors
+            if (err.message && (
+                err.message.includes('CostQuery has not been loaded yet') ||
+                err.message.includes('BUSY') ||
+                err.message.includes('PLATFORM_TRANSACTION_NOT_CREATED') ||
+                err.message.includes('network error') ||
+                err.message.includes('timeout')
+            )) {
+                console.log(`Query attempt ${attempts} failed with error: ${err.message}. Retrying...`);
                 continue;
             } else {
                 // Don't retry for other errors
@@ -183,21 +171,22 @@ export async function executeContract(
 
     // Add retry logic for execution problems
     let attempts = 0;
-    const maxAttempts = 5;
+    const maxAttempts = 8;
     let lastError: any;
 
     while (attempts < maxAttempts) {
         try {
-            // Small delay between attempts that increases with each retry
+            // Exponential backoff delay between attempts
             if (attempts > 0) {
-                await new Promise(resolve => setTimeout(resolve, 500 * attempts));
-                console.log(`Retrying transaction execution (attempt ${attempts})...`);
+                const delay = Math.min(2000 * Math.pow(1.5, attempts - 1), 15000);
+                console.log(`Transaction execution attempt ${attempts} failed. Retrying after ${delay}ms delay...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
 
             const response = await tx.execute(client);
 
             // Add some delay before getting receipt to ensure transaction has time to be processed
-            await new Promise(resolve => setTimeout(resolve, 200));
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
             const receipt = await response.getReceipt(client);
             return receipt;
@@ -205,12 +194,17 @@ export async function executeContract(
             attempts++;
             lastError = err;
 
-            // Retry for common execution errors
+            // Retry for common execution errors and network issues
             if (err.message && (
                 err.message.includes('BUSY') ||
                 err.message.includes('PLATFORM_TRANSACTION_NOT_CREATED') ||
-                err.message.includes('CostQuery has not been loaded')
+                err.message.includes('CostQuery has not been loaded') ||
+                err.message.includes('network error') ||
+                err.message.includes('timeout') ||
+                err.message.includes('CONNECTION_ERROR') ||
+                err.message.includes('RECEIPT_NOT_FOUND')
             )) {
+                console.log(`Transaction attempt ${attempts} failed with error: ${err.message}. Retrying...`);
                 continue;
             } else {
                 // Don't retry for other errors
@@ -241,6 +235,49 @@ export function verifyClientOperator(client: Client): boolean {
     }
 
     return true;
+}
+
+/**
+ * Tests connectivity to the Hedera network
+ * @returns Boolean indicating if the connection is working
+ */
+export async function testNetworkConnectivity(): Promise<boolean> {
+    try {
+        const client = getClient();
+
+        // Try a simple balance query as a test
+        const myAccountId = getOperatorAccountId();
+
+        if (!myAccountId) {
+            return false;
+        }
+
+        // Simple account balance query with retry
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                if (attempt > 0) {
+                    await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                }
+
+                const balance = await new AccountBalanceQuery()
+                    .setAccountId(myAccountId)
+                    .setMaxQueryPayment(new Hbar(0.1))
+                    .execute(client);
+
+                // If we get here, the connection is working
+                console.log('Network connectivity test successful');
+                return true;
+            } catch (err) {
+                console.log(`Network test attempt ${attempt + 1} failed:`, err);
+                if (attempt >= 2) return false;
+            }
+        }
+
+        return false;
+    } catch (err) {
+        console.error('Network connectivity test failed:', err);
+        return false;
+    }
 }
 
 /**

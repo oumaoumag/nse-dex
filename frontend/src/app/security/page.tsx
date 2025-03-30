@@ -11,7 +11,9 @@ export default function SecurityPage() {
 
     return (
         <div className="max-w-7xl mx-auto">
-            <h1 className="text-2xl font-bold mb-6 decode-gradient bg-clip-text text-transparent">Security & Recovery</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-primary-900 dark:text-white mb-4">
+                Security & <span className="bg-gradient-to-r from-primary-600 to-secondary-500 inline-block text-transparent bg-clip-text">Recovery</span>
+            </h1>
 
             {!isConnected ? (
                 <div className="bg-decode-card p-6 rounded-xl mb-6">
