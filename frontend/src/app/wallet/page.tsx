@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
 import { StockProvider } from '@/contexts/StockContext';
 import WalletConnection from '@/components/WalletConnection';
@@ -9,142 +9,225 @@ import Portfolio from '@/components/Portfolio';
 
 export default function WalletPage() {
   const { isConnected, smartWalletId } = useWallet();
+  const [activeTab, setActiveTab] = useState<'portfolio' | 'security' | 'advanced'>('portfolio');
+
+  // Helper function to decide which tab to show based on connection status
+  const getInitialTab = () => {
+    if (!isConnected) return 'security'; // If not connected, show the connection tab
+    if (isConnected && !smartWalletId) return 'security'; // If connected but no smart wallet, show security tab
+    return 'portfolio'; // Default to portfolio for connected users with smart wallet
+  };
+
+  // Set initial active tab based on connection status
+  React.useEffect(() => {
+    setActiveTab(getInitialTab());
+  }, [isConnected, smartWalletId]);
 
   return (
     <StockProvider>
-      <div className="flex flex-col min-h-screen">
-      {/* Header Section */}
-      <section className="relative bg-gradient-to-b from-primary-50 via-primary-100 to-white dark:from-primary-950 dark:via-primary-900 dark:to-primary-950 py-12 md:py-20 overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-24 -right-24 w-96 h-96 bg-secondary-400 opacity-10 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 -left-24 w-80 h-80 bg-primary-400 opacity-10 rounded-full blur-3xl"></div>
-        </div>
-        <div className="container mx-auto px-4 relative">
-          <h1 className="text-3xl md:text-4xl font-bold text-primary-900 dark:text-white mb-4">
-            Smart Wallet <span className="bg-gradient-to-r from-primary-600 to-secondary-500 inline-block text-transparent bg-clip-text">Management</span>
-          </h1>
-          <p className="text-lg text-primary-700 dark:text-primary-300 max-w-2xl mb-6">
-            Manage your smart contract wallet with advanced features like social recovery, guardian management, and transaction batching.
-          </p>
-          
-          {isConnected && smartWalletId ? (
-            <div className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 p-4 rounded-lg mb-6 max-w-md">
-              <p className="font-medium">✓ Smart Wallet Active</p>
-              <p className="text-sm">Your smart wallet is ready with account abstraction features.</p>
-            </div>
-          ) : isConnected ? (
-            <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 p-4 rounded-lg mb-6 max-w-md">
-              <p className="font-medium">⚠️ Create a Smart Wallet</p>
-              <p className="text-sm">Connect your wallet and create a smart wallet to enable account abstraction.</p>
-            </div>
-          ) : (
-            <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 p-4 rounded-lg mb-6 max-w-md">
-              <p className="font-medium">ℹ️ Connect Your Wallet</p>
-              <p className="text-sm">Connect your wallet to get started with smart wallet features.</p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Wallet Management Section */}
-      <section className="py-12 bg-white dark:bg-primary-950">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="md:col-span-1">
-              <WalletConnection />
-            </div>
-            
-            <div className="md:col-span-2">
-              <GuardianManager />
-            </div>
-          </div>
-        </div>
-      </section>
-      
-      {/* Account Abstraction Features Section */}
-      <section className="py-16 bg-primary-50 dark:bg-primary-900">
-        <div className="container mx-auto px-4">
-          <h2 className="text-2xl md:text-3xl font-bold text-primary-900 dark:text-white mb-10 text-center">
-            Account Abstraction Features
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white dark:bg-primary-800 p-6 rounded-xl shadow-md">
-              <div className="rounded-full bg-primary-100 dark:bg-primary-700 w-12 h-12 flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-primary-600 dark:text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-primary-900 dark:text-white mb-3">
-                Social Recovery
-              </h3>
-              <p className="text-primary-600 dark:text-primary-400">
-                Designate trusted friends or family as guardians who can help you recover your wallet if you lose access to your keys.
-              </p>
-            </div>
-            
-            <div className="bg-white dark:bg-primary-800 p-6 rounded-xl shadow-md">
-              <div className="rounded-full bg-primary-100 dark:bg-primary-700 w-12 h-12 flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-primary-600 dark:text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <div className="flex flex-col min-h-screen bg-decode-black">
+        {/* Compact Header */}
+        <div className="border-b border-decode-green/20 py-4">
+          <div className="container mx-auto px-4">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-3">
+                <svg className="h-6 w-6 text-decode-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
+                <h1 className="text-2xl font-bold text-white">
+                  <span className="bg-gradient-to-r from-primary-600 to-secondary-500 inline-block text-transparent bg-clip-text">Finance Portal</span>
+                </h1>
               </div>
-              <h3 className="text-xl font-semibold text-primary-900 dark:text-white mb-3">
-                Gasless Transactions
-              </h3>
-              <p className="text-primary-600 dark:text-primary-400">
-                Execute transactions without worrying about gas fees. The platform can sponsor transactions on your behalf.
-              </p>
-            </div>
-            
-            <div className="bg-white dark:bg-primary-800 p-6 rounded-xl shadow-md">
-              <div className="rounded-full bg-primary-100 dark:bg-primary-700 w-12 h-12 flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-primary-600 dark:text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                </svg>
+
+              {/* Wallet Status Indicator - Compact View */}
+              <div className="flex space-x-2">
+                {isConnected && (
+                  <WalletConnection compact={true} />
+                )}
               </div>
-              <h3 className="text-xl font-semibold text-primary-900 dark:text-white mb-3">
-                Batched Transactions
-              </h3>
-              <p className="text-primary-600 dark:text-primary-400">
-                Execute multiple transactions in a single operation, saving time and reducing costs when performing complex operations.
-              </p>
             </div>
           </div>
         </div>
-      </section>
-      
-      {/* Learn More Section */}
-      <section className="py-16 bg-white dark:bg-primary-950">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-2xl md:text-3xl font-bold text-primary-900 dark:text-white mb-6">
-            Learn More About Account Abstraction
-          </h2>
-          <p className="text-lg text-primary-700 dark:text-primary-300 max-w-2xl mx-auto mb-8">
-            Account abstraction simplifies blockchain interactions by handling complex operations through smart contracts, making Web3 more accessible.
-          </p>
-          <a 
-            href="https://hedera.com/blog/account-abstraction-making-web3-more-accessible" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center rounded-md bg-gradient-to-r from-primary-600 to-secondary-600 px-6 py-3 text-base font-medium text-white shadow-lg hover:from-primary-700 hover:to-secondary-700 transition-all"
-          >
-            Explore Hedera Account Abstraction
-          </a>
-        </div>
-      </section>
-      
-      {/* Portfolio Section */}
-      {isConnected && smartWalletId && (
-        <section className="py-16 bg-white dark:bg-primary-950">
+
+        {/* Main Content */}
+        <section className="flex-grow py-6">
           <div className="container mx-auto px-4">
-            <h2 className="text-2xl md:text-3xl font-bold text-primary-900 dark:text-white mb-8">
-              Your Token Portfolio
-            </h2>
-            <Portfolio />
+
+            {/* Connection Status Banner - Shows only when not connected or no smart wallet */}
+            {(!isConnected || !smartWalletId) && (
+              <div className={`mb-6 p-4 rounded-lg ${!isConnected
+                ? 'bg-decode-blue/10 border border-decode-blue/30'
+                : 'bg-decode-green/10 border border-decode-green/30'}`}>
+
+                <div className="flex items-start md:items-center gap-4 flex-col md:flex-row">
+                  <div className="flex-grow">
+                    <h2 className="text-lg font-semibold text-white mb-1">
+                      {!isConnected
+                        ? 'Connect Your Wallet to Access Features'
+                        : 'Create a Smart Wallet for Enhanced Security'}
+                    </h2>
+                    <p className="text-gray-400 text-sm">
+                      {!isConnected
+                        ? 'Connect your Hedera wallet to manage your portfolio and access trading features.'
+                        : 'Smart wallets provide social recovery, gasless transactions, and enhanced security.'}
+                    </p>
+                  </div>
+
+                  {!isConnected && (
+                    <button
+                      onClick={() => setActiveTab('security')}
+                      className="px-4 py-2 bg-decode-blue hover:bg-decode-blue/80 text-white rounded-md text-sm font-medium"
+                    >
+                      Connect Now
+                    </button>
+                  )}
+
+                  {isConnected && !smartWalletId && (
+                    <button
+                      onClick={() => setActiveTab('security')}
+                      className="px-4 py-2 bg-decode-green hover:bg-decode-green/80 text-white rounded-md text-sm font-medium"
+                    >
+                      Create Smart Wallet
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Tabs Navigation */}
+            <div className="flex border-b border-decode-green/20 mb-6 overflow-x-auto">
+              <button
+                onClick={() => setActiveTab('portfolio')}
+                className={`py-3 px-6 font-medium text-sm whitespace-nowrap ${activeTab === 'portfolio'
+                    ? 'text-decode-green border-b-2 border-decode-green'
+                    : 'text-gray-400 hover:text-gray-200'
+                  }`}
+              >
+                PORTFOLIO & ASSETS
+              </button>
+              <button
+                onClick={() => setActiveTab('security')}
+                className={`py-3 px-6 font-medium text-sm whitespace-nowrap ${activeTab === 'security'
+                    ? 'text-decode-green border-b-2 border-decode-green'
+                    : 'text-gray-400 hover:text-gray-200'
+                  }`}
+              >
+                WALLET & SECURITY
+              </button>
+              <button
+                onClick={() => setActiveTab('advanced')}
+                className={`py-3 px-6 font-medium text-sm whitespace-nowrap ${activeTab === 'advanced'
+                    ? 'text-decode-green border-b-2 border-decode-green'
+                    : 'text-gray-400 hover:text-gray-200'
+                  }`}
+              >
+                ADVANCED FEATURES
+              </button>
+            </div>
+
+            {/* Tab Content */}
+            <div className="py-4">
+              {activeTab === 'portfolio' && (
+                <div className="space-y-8">
+                  {isConnected && smartWalletId ? (
+                    <Portfolio />
+                  ) : (
+                    <div className="text-center py-16 bg-white/5 rounded-lg border border-white/10">
+                      <svg className="w-16 h-16 text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m-6-8h6M5 12a2 2 0 110-4h14a2 2 0 110 4H5zm0 8a2 2 0 110-4h14a2 2 0 110 4H5z" />
+                      </svg>
+                      <h3 className="text-xl font-bold text-white mb-2">Portfolio Not Available</h3>
+                      <p className="text-gray-400 max-w-md mx-auto mb-6">
+                        {!isConnected
+                          ? 'Connect your wallet to view your portfolio and asset holdings.'
+                          : 'Create a smart wallet to access your portfolio and manage your assets.'}
+                      </p>
+                      <button
+                        onClick={() => setActiveTab('security')}
+                        className="px-6 py-2 bg-decode-green hover:bg-decode-green/80 text-white rounded-md font-medium"
+                      >
+                        {!isConnected ? 'Connect Wallet' : 'Create Smart Wallet'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'security' && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Wallet Connection Panel */}
+                  <div className="lg:col-span-1 order-1">
+                    <WalletConnection />
+                  </div>
+
+                  {/* Guardian Management */}
+                  <div className="lg:col-span-2 order-2">
+                    <GuardianManager />
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'advanced' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Account Abstraction Features Cards */}
+                  <div className="decode-card p-6 rounded-lg border border-decode-green/20">
+                    <div className="rounded-full bg-decode-green/10 w-12 h-12 flex items-center justify-center mb-4">
+                      <svg className="w-6 h-6 text-decode-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-semibold text-white mb-3">
+                      Social Recovery
+                    </h3>
+                    <p className="text-gray-400 mb-4">
+                      Designate trusted guardians to help recover your wallet if you lose access to your keys.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab('security')}
+                      className="text-decode-green hover:text-decode-green/80 text-sm font-medium"
+                    >
+                      Manage Guardians →
+                    </button>
+                  </div>
+
+                  <div className="decode-card p-6 rounded-lg border border-decode-green/20">
+                    <div className="rounded-full bg-decode-green/10 w-12 h-12 flex items-center justify-center mb-4">
+                      <svg className="w-6 h-6 text-decode-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-semibold text-white mb-3">
+                      Gasless Transactions
+                    </h3>
+                    <p className="text-gray-400 mb-4">
+                      Execute transactions without worrying about gas fees. The platform can sponsor transactions on your behalf.
+                    </p>
+                    <div className="text-decode-green/50 text-sm">
+                      Coming Soon
+                    </div>
+                  </div>
+
+                  <div className="decode-card p-6 rounded-lg border border-decode-green/20">
+                    <div className="rounded-full bg-decode-green/10 w-12 h-12 flex items-center justify-center mb-4">
+                      <svg className="w-6 h-6 text-decode-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-semibold text-white mb-3">
+                      Batched Transactions
+                    </h3>
+                    <p className="text-gray-400 mb-4">
+                      Execute multiple transactions in a single operation, saving time and reducing costs.
+                    </p>
+                    <div className="text-decode-green/50 text-sm">
+                      Coming Soon
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </section>
-      )}
       </div>
     </StockProvider>
   );
