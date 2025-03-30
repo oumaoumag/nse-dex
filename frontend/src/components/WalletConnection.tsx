@@ -1,119 +1,126 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useWallet } from '../contexts/WalletContext';
+import { StatusMessage } from './ui/StatusMessage';
+import { useForm } from '../utils/formUtils';
 
 const WalletConnection: React.FC = () => {
   const { 
     isConnected, 
     accountId, 
-    smartWalletId,
     balance, 
-    error, 
-    isLoading,
     connectWallet, 
     disconnectWallet,
-    createSmartWallet
+    smartWalletId,
+    createSmartWallet,
+    isLoading
   } = useWallet();
-  
-  const [showDetails, setShowDetails] = useState(false);
-  
-  const handleCreateSmartWallet = async () => {
+
+  const {
+    formState,
+    setFormLoading,
+    setFormError,
+    setFormSuccess,
+    clearFormStatus
+  } = useForm({});
+
+  const handleConnectWallet = async () => {
+    clearFormStatus();
+    setFormLoading('Connecting wallet...');
+
     try {
-      await createSmartWallet();
-    } catch (err) {
-      console.error('Failed to create smart wallet', err);
+      await connectWallet();
+      setFormSuccess('Wallet connected successfully!');
+    } catch (err: any) {
+      setFormError(`Failed to connect wallet: ${err.message}`);
+    }
+  };
+
+  const handleDisconnectWallet = () => {
+    disconnectWallet();
+    clearFormStatus();
+  };
+
+  const handleCreateSmartWallet = async () => {
+    if (!isConnected) {
+      setFormError('Please connect your wallet first');
+      return;
+    }
+
+    clearFormStatus();
+    setFormLoading('Creating smart wallet...');
+
+    try {
+      const walletId = await createSmartWallet();
+      setFormSuccess(`Smart wallet created successfully! ID: ${walletId}`);
+    } catch (err: any) {
+      setFormError(`Failed to create smart wallet: ${err.message}`);
     }
   };
 
   return (
-    <div className="relative">
-      {isConnected ? (
-        <div className="flex flex-col">
+    <div className="p-6 bg-blue rounded-lg shadow-md">
+      <h2 className="text-xl font-semibold mb-4">Wallet Connection</h2>
+
+      <StatusMessage
+        status={formState.status}
+        message={formState.message}
+        onDismiss={clearFormStatus}
+      />
+
+      {!isConnected ? (
+        <div>
+          <p className="mb-4 text-gray-600">
+            Connect your Hedera wallet to use the application.
+          </p>
+
           <button
-            onClick={() => setShowDetails(!showDetails)}
-            className="flex items-center gap-2 text-decode-white hover:text-decode-green transition-colors px-3 py-2 rounded-md text-sm font-medium"
+            onClick={handleConnectWallet}
+            disabled={isLoading}
+            className={`w-full py-2 px-4 rounded-md font-medium ${isLoading
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
           >
-            <div className="h-2 w-2 rounded-full bg-decode-green animate-pulse"></div>
-            <span>
-              {accountId?.substring(0, 6)}...{accountId?.substring(accountId.length - 4)}
-            </span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className={`h-4 w-4 transition-transform ${showDetails ? 'rotate-180' : ''}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            {isLoading ? 'Connecting...' : 'Connect Wallet'}
           </button>
-          
-          {showDetails && (
-            <div className="absolute right-0 top-full mt-2 w-72 decode-card p-4 z-50">
-              {error && (
-                <div className="mb-4 p-3 bg-red-900/30 border border-red-500/30 text-red-300 rounded text-sm">
-                  {error}
-                </div>
-              )}
-              
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Account ID</p>
-                  <p className="font-medium text-decode-white text-sm break-all">{accountId}</p>
-                </div>
-                
-                {smartWalletId && (
-                  <div>
-                    <p className="text-xs text-gray-400 mb-1">Smart Wallet ID</p>
-                    <p className="font-medium text-decode-white text-sm break-all">{smartWalletId}</p>
-                  </div>
-                )}
-                
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Balance</p>
-                  <p className="font-medium text-decode-white text-sm">{balance || '0'} HBAR</p>
-                </div>
-                
-                {!smartWalletId && (
-                  <button
-                    onClick={handleCreateSmartWallet}
-                    disabled={isLoading}
-                    className="decode-button w-full text-sm mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isLoading ? 'Creating...' : 'Create Smart Wallet'}
-                  </button>
-                )}
-                
-                <button
-                  onClick={disconnectWallet}
-                  className="decode-button-secondary w-full text-sm"
-                >
-                  Disconnect
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       ) : (
-        <button
-          onClick={connectWallet}
-          disabled={isLoading}
-          className="decode-button text-sm whitespace-nowrap"
-        >
-          {isLoading ? 'Connecting...' : 'Connect Wallet'}
-        </button>
-      )}
-      
-      {isConnected && smartWalletId && (
-        <div className="absolute right-0 top-full mt-2 p-3 decode-card border border-decode-green/30 text-xs rounded-md z-40">
-          <div className="flex items-center gap-2 mb-1 text-decode-green">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <p className="font-medium">Account Abstraction Enabled</p>
-          </div>
-          <p className="text-gray-400">Transactions will be executed through your smart contract wallet for enhanced security and usability.</p>
+        <div>
+            <div className="mb-4 p-4 bg-gray-800 text-white rounded-md">
+              <div className="mb-2">
+                <span className="font-medium">Account ID:</span> {accountId}
+              </div>
+              <div className="mb-2">
+                <span className="font-medium">Balance:</span> {balance} ℏ HBAR
+              </div>
+              {smartWalletId && (
+                <div>
+                  <span className="font-medium">Smart Wallet ID:</span> {smartWalletId}
+                </div>
+              )}
+            </div>
+
+            {!smartWalletId && (
+              <button
+                onClick={handleCreateSmartWallet}
+                disabled={isLoading}
+                className={`w-full py-2 px-4 rounded-md font-medium mb-4 ${isLoading
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700 text-white'
+                  }`}
+              >
+                {isLoading ? 'Creating...' : 'Create Smart Wallet'}
+              </button>
+            )}
+
+            <button
+              onClick={handleDisconnectWallet}
+              className="w-full py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium"
+            >
+              Disconnect Wallet
+            </button>
         </div>
       )}
     </div>
