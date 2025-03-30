@@ -55,7 +55,7 @@ NEXT_PUBLIC_RELAYER_URL=your-relayer-url
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/tajiri-v2.git
+   git clone https://github.com/leakeyqq/tajiri-v2.git
    cd tajiri-v2
    ```
 
