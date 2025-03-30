@@ -1,13 +1,38 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { signIn, signOut, useSession } from 'next-auth/react';
-import Image from 'next/image';
+
+// Define a component to handle profile image display with fallbacks
+const UserAvatar = ({ user }: { user: any }) => {
+  const [imageError, setImageError] = useState(false);
+
+  if (!user?.image || imageError) {
+    // If no image or image failed to load, show initials
+    return (
+      <div className="h-10 w-10 rounded-full bg-decode-green/90 flex items-center justify-center text-white font-medium">
+        {user?.name?.charAt(0) || 'U'}
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-10 w-10 rounded-full overflow-hidden border border-decode-green/20">
+      {/* Use standard img tag instead of next/image to avoid domain config issues */}
+      <img
+        src={user.image}
+        alt={user.name || 'User'}
+        className="w-full h-full object-cover"
+        onError={() => setImageError(true)}
+      />
+    </div>
+  );
+};
 
 /**
  * Google Login Button component with Safaricom Decode styling
  */
-export default function GoogleLoginButton() {
+const GoogleLoginButton: React.FC = () => {
   const { data: session, status } = useSession();
   const isLoading = status === 'loading';
 
@@ -16,17 +41,7 @@ export default function GoogleLoginButton() {
       {session ? (
         <div className="flex flex-col items-center gap-3">
           <div className="decode-card border border-decode-green/30 p-4 rounded-lg flex items-center gap-4">
-            {session.user?.image && (
-              <div className="h-10 w-10 rounded-full overflow-hidden border border-decode-green/20">
-                <Image 
-                  src={session.user.image} 
-                  alt={session.user.name || 'User'} 
-                  width={40} 
-                  height={40}
-                  className="object-cover"
-                />
-              </div>
-            )}
+            <UserAvatar user={session.user} />
             <div>
               <p className="text-sm text-gray-400">Signed in as</p>
               <p className="font-medium text-decode-white">{session.user?.name}</p>
@@ -59,4 +74,6 @@ export default function GoogleLoginButton() {
       )}
     </div>
   );
-}
+};
+
+export default GoogleLoginButton;
