@@ -62,7 +62,7 @@ export default function WalletLayout({ children }: { children: React.ReactNode }
                     e.currentTarget.style.display = 'none';
                   }}
                 />
-                <span className="text-xl font-bold decode-gradient bg-clip-text text-transparent">Tajiri</span>
+                <span className="text-xl font-bold">Tajiri</span>
               </Link>
             </div>
 

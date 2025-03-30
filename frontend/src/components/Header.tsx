@@ -47,7 +47,7 @@ export default function Header() {
                                     e.currentTarget.style.display = 'none';
                                 }}
                             />
-                            <span className="text-2xl font-bold decode-gradient bg-clip-text text-transparent">Tajiri</span>
+                            <span className="text-2xl font-bold">Tajiri</span>
                         </Link>
                     </div>
                     <nav className="hidden md:flex items-center gap-6">
