@@ -4,7 +4,7 @@ import KYC from '@/components/KYC';
 
 export default function KYCPage() {
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="min-h-screen bg-decode-black">
             <KYC />
         </div>
     );
