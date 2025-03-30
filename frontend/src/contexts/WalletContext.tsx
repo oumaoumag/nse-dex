@@ -17,6 +17,7 @@ type WalletContextType = {
   balance: string | null;
   isLoading: boolean;
   error: string | null;
+  connect: () => Promise<void>;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
   executeTransaction: (targetContract: string, functionName: string, params: any[], value?: number) => Promise<any>;
@@ -48,6 +49,7 @@ const defaultContext: WalletContextType = {
   balance: null,
   isLoading: false,
   error: null,
+  connect: async () => { },
   connectWallet: async () => {},
   disconnectWallet: () => {},
   executeTransaction: async () => ({}),
@@ -98,6 +100,24 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [recoveryInitiator, setRecoveryInitiator] = useState<string | null>(null);
   const [proposedNewOwner, setProposedNewOwner] = useState<string | null>(null);
   const [privateKeyStr, setPrivateKeyStr] = useState<string | null>(null);
+  const [autoConnectAttempted, setAutoConnectAttempted] = useState<boolean>(false);
+
+  // Auto-connect on component mount without user interaction
+  useEffect(() => {
+    if (!autoConnectAttempted && !isConnected) {
+      const autoConnect = async () => {
+        try {
+          await connect();
+          setAutoConnectAttempted(true);
+        } catch (err) {
+          console.error("Auto-connect failed:", err);
+          setAutoConnectAttempted(true);
+        }
+      };
+
+      autoConnect();
+    }
+  }, [autoConnectAttempted, isConnected]);
 
   // Check for existing connection on component mount
   useEffect(() => {
@@ -222,6 +242,39 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }
   };
 
+  // New silent auto-connect method
+  const connect = async () => {
+    try {
+      // For this implementation, we're using local environment variables
+      const myAccountId = hederaService.getOperatorAccountId();
+      const myPrivateKey = hederaService.getOperatorPrivateKey();
+
+      if (!myAccountId || !myPrivateKey) {
+        console.log('Account credentials not found in environment variables');
+        return;
+      }
+
+      // Store private key in memory
+      setPrivateKeyStr(myPrivateKey);
+
+      // Initialize client
+      const newClient = hederaService.getClient();
+      setClient(newClient);
+      setAccountId(myAccountId);
+      setIsConnected(true);
+
+      // Store account ID in local storage
+      localStorage.setItem('tajiri-account-id', myAccountId);
+
+      // Check for existing smart wallet
+      await checkExistingSmartWallet(myAccountId);
+
+    } catch (err: any) {
+      console.error("Silent connect failed:", err);
+      // Don't set errors for silent connection
+    }
+  };
+
   const connectWallet = async () => {
     setIsLoading(true);
     setError(null);
@@ -248,26 +301,28 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       localStorage.setItem('tajiri-account-id', myAccountId);
 
       // Check for existing smart wallet
-      const savedSmartWalletId = localStorage.getItem('tajiri-smart-wallet-id');
-      if (savedSmartWalletId) {
-        setSmartWalletId(savedSmartWalletId);
-      }
+      await checkExistingSmartWallet(myAccountId);
 
-      // Fetch balance
-      try {
-        const accountBalance = await hederaService.getAccountBalance(myAccountId);
-        setBalance(accountBalance);
-      } catch (balanceErr: any) {
-        console.error('Failed to fetch initial balance:', balanceErr);
-      }
     } catch (err: any) {
-      console.error('Wallet connection error:', err);
-      setError(`Failed to connect wallet: ${err.message}`);
-      setIsConnected(false);
-      setClient(null);
-      setAccountId(null);
+      setError(`Wallet connection failed: ${err.message}`);
+      console.error("Wallet connection failed:", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Helper to check for existing smart wallet
+  const checkExistingSmartWallet = async (account: string) => {
+    try {
+      const walletId = await walletService.findSmartWalletForOwner(account);
+
+      if (walletId) {
+        setSmartWalletId(walletId);
+        localStorage.setItem('tajiri-smart-wallet-id', walletId);
+      }
+    } catch (err) {
+      console.error("Failed to check for existing smart wallet:", err);
+    // Don't set error on this non-critical operation
     }
   };
 
@@ -649,6 +704,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     balance,
     isLoading,
     error,
+    connect,
     connectWallet,
     disconnectWallet,
     executeTransaction,

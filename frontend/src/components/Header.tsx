@@ -1,20 +1,35 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useWallet } from '@/contexts/WalletContext';
-import { useKYC, KYCStatus } from '@/contexts/KYCContext';
 import WalletConnection from '@/components/WalletConnection';
 
 export default function Header() {
     const { isConnected } = useWallet();
-    const { kycStatus } = useKYC();
+
+    const [mounted, setMounted] = useState(false);
+    const [currentPath, setCurrentPath] = useState('/');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    // Handle mounting and path setting after component mounts
+    useEffect(() => {
+        setMounted(true);
+
+        // Get current path without router
+        if (typeof window !== 'undefined') {
+            setCurrentPath(window.location.pathname);
+        }
+    }, []);
 
     // Only show main header if not connected (otherwise WalletLayout handles navigation)
     if (isConnected) return null;
 
-    const needsKYC = kycStatus === KYCStatus.NONE || kycStatus === KYCStatus.REJECTED;
+    // Safe isActive function that works without router
+    const isActive = (path: string) => {
+        if (!mounted) return false;
+        return currentPath === path;
+    };
 
     return (
         <>
@@ -27,27 +42,51 @@ export default function Header() {
                         </Link>
                     </div>
                     <nav className="hidden md:flex items-center gap-6">
-                        <Link href="/" className="text-sm font-medium text-decode-white hover:text-decode-green transition-colors">
+                        <Link
+                            href="/"
+                            className={`text-sm font-medium ${isActive('/')
+                                ? 'text-decode-green'
+                                : 'text-decode-white hover:text-decode-green'
+                                }`}
+                        >
                             HOME
                         </Link>
-                        <Link href="/marketplace" className="text-sm font-medium text-decode-white hover:text-decode-green transition-colors">
+                        <Link
+                            href="/marketplace"
+                            className={`text-sm font-medium ${isActive('/marketplace')
+                                ? 'text-decode-green'
+                                : 'text-decode-white hover:text-decode-green'
+                                }`}
+                        >
                             MARKETPLACE
                         </Link>
-                        <Link href="/trading" className="text-sm font-medium text-decode-white hover:text-decode-green transition-colors">
+                        <Link
+                            href="/trading"
+                            className={`text-sm font-medium ${isActive('/trading')
+                                ? 'text-decode-green'
+                                : 'text-decode-white hover:text-decode-green'
+                                }`}
+                        >
                             P2P TRADING
                         </Link>
-                        <Link href="/wallet" className="text-sm font-medium text-decode-white hover:text-decode-green transition-colors">
+                        <Link
+                            href="/wallet"
+                            className={`text-sm font-medium ${isActive('/wallet')
+                                ? 'text-decode-green'
+                                : 'text-decode-white hover:text-decode-green'
+                                }`}
+                        >
                             PORTFOLIO
                         </Link>
-                        {needsKYC && isConnected && (
+                        {isConnected && (
                             <Link
-                                href="/kyc"
-                                className="text-sm font-medium text-yellow-500 hover:text-yellow-400 transition-colors flex items-center gap-1"
+                                href="/stocks"
+                                className={`text-sm font-medium ${isActive('/stocks')
+                                    ? 'text-decode-green'
+                                    : 'text-decode-white hover:text-decode-green'
+                                    }`}
                             >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                                </svg>
-                                COMPLETE KYC
+                                STOCKS
                             </Link>
                         )}
                         <div className="h-5 w-px bg-decode-green/30 mx-2"></div>
@@ -82,42 +121,54 @@ export default function Header() {
                     <nav className="flex flex-col items-center gap-6 p-6">
                         <Link
                             href="/"
-                            className="text-lg font-medium text-decode-white hover:text-decode-green transition-colors"
+                            className={`text-lg font-medium ${isActive('/')
+                                ? 'text-decode-green'
+                                : 'text-decode-white hover:text-decode-green'
+                                }`}
                             onClick={() => setIsMobileMenuOpen(false)}
                         >
                             HOME
                         </Link>
                         <Link
                             href="/marketplace"
-                            className="text-lg font-medium text-decode-white hover:text-decode-green transition-colors"
+                            className={`text-lg font-medium ${isActive('/marketplace')
+                                ? 'text-decode-green'
+                                : 'text-decode-white hover:text-decode-green'
+                                }`}
                             onClick={() => setIsMobileMenuOpen(false)}
                         >
                             MARKETPLACE
                         </Link>
                         <Link
                             href="/trading"
-                            className="text-lg font-medium text-decode-white hover:text-decode-green transition-colors"
+                            className={`text-lg font-medium ${isActive('/trading')
+                                ? 'text-decode-green'
+                                : 'text-decode-white hover:text-decode-green'
+                                }`}
                             onClick={() => setIsMobileMenuOpen(false)}
                         >
                             P2P TRADING
                         </Link>
                         <Link
                             href="/wallet"
-                            className="text-lg font-medium text-decode-white hover:text-decode-green transition-colors"
+                            className={`text-lg font-medium ${isActive('/wallet')
+                                ? 'text-decode-green'
+                                : 'text-decode-white hover:text-decode-green'
+                                }`}
                             onClick={() => setIsMobileMenuOpen(false)}
                         >
                             PORTFOLIO
                         </Link>
-                        {needsKYC && isConnected && (
+                        {isConnected && (
                             <Link
-                                href="/kyc"
-                                className="text-lg font-medium text-yellow-500 hover:text-yellow-400 transition-colors flex items-center gap-2"
+                                href="/stocks"
+                                className={`text-lg font-medium ${isActive('/stocks')
+                                    ? 'text-decode-green'
+                                    : 'text-decode-white hover:text-decode-green'
+                                    }`}
                                 onClick={() => setIsMobileMenuOpen(false)}
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                                </svg>
-                                COMPLETE KYC
+                                STOCKS
                             </Link>
                         )}
                         <div className="my-4">

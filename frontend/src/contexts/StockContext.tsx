@@ -9,25 +9,32 @@ import { useWallet } from './WalletContext';
 import { withErrorHandling, validateWallet, validateContractId, validateContractDependencies } from '../utils/errorUtils';
 import { Stock, BuyOffer, SellOffer, calculateTotalHbar, calculateUsdValue } from '../types/stock';
 import * as hederaService from '../services/hederaService';
+import * as stablecoinService from '../services/stablecoinService';
 import { formatError, logError, isRetryableError } from '../utils/errorUtils';
+import { ethers } from 'ethers';
 
 type StockContextType = {
   stocks: Stock[];
   userBalances: Record<string, string>;
+  stablecoinBalances: Record<string, string>;
   buyOffers: BuyOffer[];
   sellOffers: SellOffer[];
   isLoading: boolean;
   error: string | null;
   fetchStocks: () => Promise<void>;
   fetchUserBalances: () => Promise<void>;
+  fetchStablecoinBalances: () => Promise<void>;
   mintStock: (stockId: string, hbarAmount: number) => Promise<boolean>;
+  mintStockWithStablecoin: (stockId: string, amount: number, tokenSymbol: 'USDC' | 'USDT') => Promise<boolean>;
   redeemStock: (stockId: string, tokenAmount: number) => Promise<boolean>;
   createBuyOffer: (stockId: string, amount: number, pricePerToken: number) => Promise<string>;
+  createBuyOfferWithStablecoin: (stockId: string, amount: number, pricePerToken: number, tokenSymbol: 'USDC' | 'USDT') => Promise<string>;
   createSellOffer: (stockId: string, amount: number, pricePerToken: number) => Promise<string>;
   deleteBuyOffer: (offerId: string) => Promise<boolean>;
   deleteSellOffer: (offerId: string) => Promise<boolean>;
   sellToOffer: (offerId: string) => Promise<boolean>;
   buyFromOffer: (offerId: string) => Promise<boolean>;
+  buyFromOfferWithStablecoin: (offerId: string, tokenSymbol: 'USDC' | 'USDT') => Promise<boolean>;
   fetchOffers: () => Promise<void>;
   exchangeRate: number;
 };
@@ -35,20 +42,25 @@ type StockContextType = {
 const defaultContext: StockContextType = {
   stocks: [],
   userBalances: {},
+  stablecoinBalances: {},
   buyOffers: [],
   sellOffers: [],
   isLoading: false,
   error: null,
   fetchStocks: async () => { },
   fetchUserBalances: async () => { },
+  fetchStablecoinBalances: async () => { },
   mintStock: async () => false,
+  mintStockWithStablecoin: async () => false,
   redeemStock: async () => false,
   createBuyOffer: async () => "",
+  createBuyOfferWithStablecoin: async () => "",
   createSellOffer: async () => "",
   deleteBuyOffer: async () => false,
   deleteSellOffer: async () => false,
   sellToOffer: async () => false,
   buyFromOffer: async () => false,
+  buyFromOfferWithStablecoin: async () => false,
   fetchOffers: async () => { },
   exchangeRate: 0,
 };
@@ -62,10 +74,11 @@ interface StockProviderProps {
 }
 
 export const StockProvider: React.FC<StockProviderProps> = ({ children }) => {
-  const { client, isConnected, accountId, smartWalletId, executeTransaction, balance } = useWallet();
+  const { client, isConnected, accountId, smartWalletId, executeTransaction, balance, signer, provider } = useWallet();
 
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [userBalances, setUserBalances] = useState<Record<string, string>>({});
+  const [stablecoinBalances, setStablecoinBalances] = useState<Record<string, string>>({});
   const [buyOffers, setBuyOffers] = useState<BuyOffer[]>([]);
   const [sellOffers, setSellOffers] = useState<SellOffer[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -134,6 +147,11 @@ export const StockProvider: React.FC<StockProviderProps> = ({ children }) => {
         console.log('Fetching user balances...');
         await fetchUserBalances();
 
+        // Fetch stablecoin balances if provider is available
+        if (provider && accountId) {
+          await fetchStablecoinBalances();
+        }
+
         // Wait a moment before fetching offers
         await new Promise(resolve => setTimeout(resolve, 300));
         console.log('Fetching offers...');
@@ -144,7 +162,7 @@ export const StockProvider: React.FC<StockProviderProps> = ({ children }) => {
     };
 
     loadUserData();
-  }, [client, accountId, stocks]);
+  }, [client, accountId, stocks, provider]);
 
   // Fetch exchange rate from Hedera
   const fetchExchangeRate = async () => {
@@ -321,6 +339,45 @@ export const StockProvider: React.FC<StockProviderProps> = ({ children }) => {
     }
   };
 
+  // Fetch user stablecoin balances
+  const fetchStablecoinBalances = async () => {
+    if (!provider || !accountId) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const balances: Record<string, string> = {};
+
+      // Get USDC balance
+      if (stablecoinService.SUPPORTED_TOKENS.USDC.address) {
+        const usdcBalance = await stablecoinService.getTokenBalance(
+          stablecoinService.SUPPORTED_TOKENS.USDC.address,
+          accountId,
+          provider
+        );
+        balances['USDC'] = usdcBalance;
+      }
+
+      // Get USDT balance
+      if (stablecoinService.SUPPORTED_TOKENS.USDT.address) {
+        const usdtBalance = await stablecoinService.getTokenBalance(
+          stablecoinService.SUPPORTED_TOKENS.USDT.address,
+          accountId,
+          provider
+        );
+        balances['USDT'] = usdtBalance;
+      }
+
+      setStablecoinBalances(balances);
+    } catch (err: any) {
+      logError('fetchStablecoinBalances', err);
+      // Non-blocking error, continue with other operations
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Mint new stock tokens with HBAR
   const mintStock = async (stockId: string, hbarAmount: number) => {
     if (!validateWallet(client, smartWalletId, isConnected, setError)) {
@@ -358,6 +415,75 @@ export const StockProvider: React.FC<StockProviderProps> = ({ children }) => {
       'Failed to mint stock',
       false
     );
+  };
+
+  // Mint stock with stablecoin (USDC/USDT)
+  const mintStockWithStablecoin = async (stockId: string, amount: number, tokenSymbol: 'USDC' | 'USDT') => {
+    if (!validateWallet(isConnected, smartWalletId, setError)) return false;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Get token address
+      const tokenAddress = stablecoinService.SUPPORTED_TOKENS[tokenSymbol].address;
+      if (!tokenAddress) {
+        throw new Error(`${tokenSymbol} token address is not configured`);
+      }
+
+      // Get token decimals and calculate exact amount
+      const tokenDecimals = stablecoinService.SUPPORTED_TOKENS[tokenSymbol].decimals;
+      const exactAmount = ethers.utils.parseUnits(amount.toString(), tokenDecimals);
+
+      // Check if user has enough balance
+      const tokenBalance = await stablecoinService.getTokenBalance(
+        tokenAddress,
+        accountId,
+        provider
+      );
+      const balanceInWei = ethers.utils.parseUnits(tokenBalance, tokenDecimals);
+
+      if (balanceInWei.lt(exactAmount)) {
+        throw new Error(`Insufficient ${tokenSymbol} balance`);
+      }
+
+      // Convert stablecoin to HBAR amount
+      const hbarAmount = await stablecoinService.convertToHbar(amount, tokenSymbol);
+
+      // Approve token spending
+      const spenderAddress = mintStockContractId; // The contract that will receive the stablecoins
+      const approved = await stablecoinService.approveTokenSpend(
+        tokenAddress,
+        spenderAddress,
+        exactAmount.toString(),
+        signer
+      );
+
+      if (!approved) {
+        throw new Error(`Failed to approve ${tokenSymbol} spending`);
+      }
+
+      // Execute mint transaction with HBAR equivalent
+      const tx = await executeTransaction({
+        contractId: mintStockContractId,
+        functionName: "mintNewStock",
+        params: new ContractFunctionParameters().addAddress(stockId),
+        payableAmount: new Hbar(hbarAmount.toString())
+      });
+
+      return tx.success;
+    } catch (err: any) {
+      const errorMessage = formatError(err, "Failed to mint stock with stablecoin");
+      setError(errorMessage);
+      console.error('mintStockWithStablecoin error:', errorMessage);
+      return false;
+    } finally {
+      setIsLoading(false);
+
+      // Refresh balances after minting
+      fetchUserBalances();
+      fetchStablecoinBalances();
+    }
   };
 
   // Redeem stock tokens for HBAR
@@ -456,6 +582,87 @@ export const StockProvider: React.FC<StockProviderProps> = ({ children }) => {
       'Failed to create buy offer',
       ""
     );
+  };
+
+  // Create a buy offer with stablecoin
+  const createBuyOfferWithStablecoin = async (stockId: string, amount: number, pricePerToken: number, tokenSymbol: 'USDC' | 'USDT') => {
+    if (!validateWallet(isConnected, smartWalletId, setError)) return "";
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Get token address
+      const tokenAddress = stablecoinService.SUPPORTED_TOKENS[tokenSymbol].address;
+      if (!tokenAddress) {
+        throw new Error(`${tokenSymbol} token address is not configured`);
+      }
+
+      // Calculate total stablecoin amount needed
+      const totalStablecoinAmount = amount * pricePerToken;
+
+      // Get token decimals and calculate exact amount
+      const tokenDecimals = stablecoinService.SUPPORTED_TOKENS[tokenSymbol].decimals;
+      const exactAmount = ethers.utils.parseUnits(totalStablecoinAmount.toString(), tokenDecimals);
+
+      // Check if user has enough balance
+      const tokenBalance = await stablecoinService.getTokenBalance(
+        tokenAddress,
+        accountId,
+        provider
+      );
+      const balanceInWei = ethers.utils.parseUnits(tokenBalance, tokenDecimals);
+
+      if (balanceInWei.lt(exactAmount)) {
+        throw new Error(`Insufficient ${tokenSymbol} balance`);
+      }
+
+      // Convert stablecoin to HBAR amount for the smart contract
+      const hbarEquivalent = await stablecoinService.convertToHbar(totalStablecoinAmount, tokenSymbol);
+
+      // Approve token spending
+      const spenderAddress = p2pOffersContractId; // The contract that will receive the stablecoins
+      const approved = await stablecoinService.approveTokenSpend(
+        tokenAddress,
+        spenderAddress,
+        exactAmount.toString(),
+        signer
+      );
+
+      if (!approved) {
+        throw new Error(`Failed to approve ${tokenSymbol} spending`);
+      }
+
+      // Execute createBuyOffer transaction with HBAR equivalent
+      const tx = await executeTransaction({
+        contractId: p2pOffersContractId,
+        functionName: "createBuyOffer",
+        params: new ContractFunctionParameters()
+          .addAddress(stockId)
+          .addUint256(amount)
+          .addUint256(pricePerToken),
+        payableAmount: new Hbar(hbarEquivalent.toString())
+      });
+
+      if (tx.success && tx.receipt) {
+        // Extract offer ID from logs
+        const newOfferId = tx.receipt.toString();
+        await fetchOffers();
+        return newOfferId;
+      }
+
+      return "";
+    } catch (err: any) {
+      const errorMessage = formatError(err, "Failed to create buy offer with stablecoin");
+      setError(errorMessage);
+      console.error('createBuyOfferWithStablecoin error:', errorMessage);
+      return "";
+    } finally {
+      setIsLoading(false);
+
+      // Refresh stablecoin balances after transaction
+      fetchStablecoinBalances();
+    }
   };
 
   // Create a sell offer
@@ -567,81 +774,144 @@ export const StockProvider: React.FC<StockProviderProps> = ({ children }) => {
 
   // Execute a trade by selling to a buy offer
   const sellToOffer = async (offerId: string) => {
-    if (!client || !smartWalletId || !isConnected) {
-      setError('Wallet not connected or initialized');
-      return false;
-    }
+    return withErrorHandling(async () => {
+      validateWallet(isConnected, accountId);
+      validateContractId(p2pTradeContractId);
 
-    setIsLoading(true);
-    setError(null);
+      setIsLoading(true);
 
-    try {
-      // Find the offer details
-      const offer = buyOffers.find(o => o.offerId === offerId);
-      if (!offer) throw new Error('Offer not found');
+      console.log(`Executing sell to offer: ${offerId}`);
 
-      // Approve token transfer for the trade
-      await executeTransaction(
-        offer.stockContract,
-        "approve",
-        [p2pTradeContractId, offer.stockAmount],
-        0
-      );
+      const params = new ContractFunctionParameters()
+        .addString(offerId);
 
-      // Execute sellToABuyer function
-      await executeTransaction(
+      const result = await executeTransaction(
         p2pTradeContractId,
-        "sellToABuyer",
-        [offerId],
-        0
+        "doP2PTrade",
+        params
       );
 
-      // Refresh data
-      await fetchOffers();
-      await fetchUserBalances();
-      return true;
-    } catch (err: any) {
-      console.error('Failed to execute sell to offer:', err);
-      setError(`Failed to execute trade: ${err.message}`);
+      // Check if the transaction was successful
+      if (result) {
+        console.log(`Successfully sold to offer: ${offerId}`);
+
+        // Refresh offers and balances after transaction
+        await fetchOffers();
+        await fetchUserBalances();
+        return true;
+      }
+
       return false;
-    } finally {
-      setIsLoading(false);
-    }
+    }, setError, setIsLoading);
   };
 
-  // Execute a trade by buying from a sell offer
   const buyFromOffer = async (offerId: string) => {
-    if (!client || !smartWalletId || !isConnected) {
-      setError('Wallet not connected or initialized');
+    return withErrorHandling(async () => {
+      validateWallet(isConnected, accountId);
+      validateContractId(p2pTradeContractId);
+
+      setIsLoading(true);
+
+      console.log(`Executing buy from offer: ${offerId}`);
+
+      const params = new ContractFunctionParameters()
+        .addString(offerId);
+
+      const result = await executeTransaction(
+        p2pTradeContractId,
+        "doP2PTrade",
+        params
+      );
+
+      // Check if the transaction was successful
+      if (result) {
+        console.log(`Successfully bought from offer: ${offerId}`);
+
+        // Refresh offers and balances after transaction
+        await fetchOffers();
+        await fetchUserBalances();
+        return true;
+      }
+
       return false;
-    }
+    }, setError, setIsLoading);
+  };
+
+  // Buy from a sell offer using stablecoin
+  const buyFromOfferWithStablecoin = async (offerId: string, tokenSymbol: 'USDC' | 'USDT') => {
+    if (!validateWallet(isConnected, smartWalletId, setError)) return false;
 
     setIsLoading(true);
     setError(null);
 
     try {
       // Find the offer details
-      const offer = sellOffers.find(o => o.offerId === offerId);
-      if (!offer) throw new Error('Offer not found');
+      const offer = sellOffers.find(offer => offer.offerId === offerId);
+      if (!offer) {
+        throw new Error("Sell offer not found");
+      }
 
-      // Calculate total HBAR to send
-      const totalHbarValue = offer.stockAmount * offer.offerPriceHbar;
+      // Calculate total HBAR needed for purchase
+      const totalHbarNeeded = calculateTotalHbar(offer.stockAmount, offer.offerPriceHbar);
 
-      // Execute buyFromASeller function
-      await executeTransaction(
-        p2pTradeContractId,
-        "buyFromASeller",
-        [offerId],
-        totalHbarValue // Send HBAR with the transaction
+      // Convert HBAR to stablecoin amount
+      const stablecoinAmount = totalHbarNeeded * exchangeRate;
+
+      // Get token address
+      const tokenAddress = stablecoinService.SUPPORTED_TOKENS[tokenSymbol].address;
+      if (!tokenAddress) {
+        throw new Error(`${tokenSymbol} token address is not configured`);
+      }
+
+      // Get token decimals and calculate exact amount
+      const tokenDecimals = stablecoinService.SUPPORTED_TOKENS[tokenSymbol].decimals;
+      const exactAmount = ethers.utils.parseUnits(stablecoinAmount.toString(), tokenDecimals);
+
+      // Check if user has enough balance
+      const tokenBalance = await stablecoinService.getTokenBalance(
+        tokenAddress,
+        accountId,
+        provider
+      );
+      const balanceInWei = ethers.utils.parseUnits(tokenBalance, tokenDecimals);
+
+      if (balanceInWei.lt(exactAmount)) {
+        throw new Error(`Insufficient ${tokenSymbol} balance`);
+      }
+
+      // Approve token spending
+      const spenderAddress = p2pTradeContractId; // The contract that will receive the stablecoins
+      const approved = await stablecoinService.approveTokenSpend(
+        tokenAddress,
+        spenderAddress,
+        exactAmount.toString(),
+        signer
       );
 
-      // Refresh data
-      await fetchOffers();
-      await fetchUserBalances();
-      return true;
+      if (!approved) {
+        throw new Error(`Failed to approve ${tokenSymbol} spending`);
+      }
+
+      // Execute buyFromOffer transaction with HBAR
+      const tx = await executeTransaction({
+        contractId: p2pTradeContractId,
+        functionName: "buyFromASeller",
+        params: new ContractFunctionParameters().addUint256(Number(offerId)),
+        payableAmount: new Hbar(totalHbarNeeded.toString())
+      });
+
+      if (tx.success) {
+        await fetchOffers();
+        await fetchUserBalances();
+        await fetchStablecoinBalances();
+        return true;
+      }
+
+      return false;
     } catch (err: any) {
-      console.error('Failed to execute buy from offer:', err);
-      setError(`Failed to execute trade: ${err.message}`);
+      const errorMessage = formatError(err, "Failed to buy from offer with stablecoin");
+      setError(errorMessage);
+      console.error('buyFromOfferWithStablecoin error:', errorMessage);
       return false;
     } finally {
       setIsLoading(false);
@@ -791,20 +1061,25 @@ export const StockProvider: React.FC<StockProviderProps> = ({ children }) => {
       value={{
         stocks,
         userBalances,
+        stablecoinBalances,
         buyOffers,
         sellOffers,
         isLoading,
         error,
         fetchStocks,
         fetchUserBalances,
+        fetchStablecoinBalances,
         mintStock,
+        mintStockWithStablecoin,
         redeemStock,
         createBuyOffer,
+        createBuyOfferWithStablecoin,
         createSellOffer,
         deleteBuyOffer,
         deleteSellOffer,
         sellToOffer,
         buyFromOffer,
+        buyFromOfferWithStablecoin,
         fetchOffers,
         exchangeRate
       }}
