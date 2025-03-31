@@ -19,6 +19,7 @@ export const SmartWalletManager: React.FC = () => {
     } = useWallet();
     const [isLoading, setIsLoading] = useState(false);
     const [hasChecked, setHasChecked] = useState(false);
+    const [attempts, setAttempts] = useState(0);
 
     useEffect(() => {
         // Only proceed for authenticated users
@@ -39,9 +40,22 @@ export const SmartWalletManager: React.FC = () => {
 
                 if (existingWalletId) {
                     console.log("Found existing smart wallet ID in local storage:", existingWalletId);
-                    setSmartWalletId(existingWalletId);
-                    setHasChecked(true);
-                    return;
+                    // Verify that the smart wallet exists and is valid before using it
+                    try {
+                        const isValid = await walletService.findSmartWalletForOwner(session.user.id);
+                        if (isValid && isValid === existingWalletId) {
+                            console.log("Verified existing smart wallet is valid:", existingWalletId);
+                            setSmartWalletId(existingWalletId);
+                            setHasChecked(true);
+                            return;
+                        } else {
+                            console.warn("Stored wallet ID doesn't match or is invalid, will create new one");
+                            localStorage.removeItem('tajiri-smart-wallet-id');
+                        }
+                    } catch (verifyErr) {
+                        console.error("Error verifying existing wallet:", verifyErr);
+                        // Continue to try creating a new one
+                    }
                 }
 
                 console.log("Looking for existing smart wallet for user:", session.user.id);
@@ -55,6 +69,15 @@ export const SmartWalletManager: React.FC = () => {
                 } else {
                     // If not found, create a new smart wallet
                     console.log("Creating new smart wallet for user:", session.user.id);
+                    setAttempts(prev => prev + 1);
+
+                    // Add exponential backoff for retries
+                    if (attempts > 0) {
+                        const backoffTime = Math.min(2000 * Math.pow(2, attempts - 1), 10000);
+                        console.log(`Attempt #${attempts + 1} for wallet creation with backoff of ${backoffTime}ms`);
+                        await new Promise(resolve => setTimeout(resolve, backoffTime));
+                    }
+
                     const newWalletId = await walletService.createSmartWallet(session.user.id);
 
                     console.log("Created new smart wallet:", newWalletId);
@@ -63,7 +86,22 @@ export const SmartWalletManager: React.FC = () => {
                 }
             } catch (err: any) {
                 console.error("Error setting up smart wallet:", err);
-                setError(`Failed to set up smart wallet: ${err.message}`);
+
+                // If we've tried multiple times and still failing, show a more user-friendly error
+                if (attempts >= 2) {
+                    setError(
+                        `Wallet creation is taking longer than expected. The Hedera network might be congested. ` +
+                        `Please visit /debug for more information or try again later.`
+                    );
+                    setHasChecked(true); // Stop retrying
+                } else {
+                    setError(`Setting up your wallet... This may take a minute.`);
+
+                    // Schedule a retry with a delay
+                    setTimeout(() => {
+                        setHasChecked(false); // Reset to trigger another attempt
+                    }, 5000); // 5 second delay
+                }
             } finally {
                 setIsLoading(false);
                 setHasChecked(true);
@@ -74,7 +112,7 @@ export const SmartWalletManager: React.FC = () => {
         if (isConnected) {
             setupSmartWallet();
         }
-    }, [session, status, smartWalletId, setSmartWalletId, isConnected, hasChecked, setError]);
+    }, [session, status, smartWalletId, setSmartWalletId, isConnected, hasChecked, setError, attempts]);
 
     // This component doesn't render anything, it just manages the smart wallet
     return null;
