@@ -1,7 +1,7 @@
 'use client';
 
 import { SessionProvider } from "next-auth/react";
-import { AuthProvider } from "@/providers/AuthProvider";
+import AuthProvider from "@/providers/AuthProvider";
 import NotificationProvider from "@/components/NotificationProvider";
 import { WalletProvider } from '@/contexts/WalletContext';
 import { StockProvider } from '@/contexts/StockContext';
@@ -17,9 +17,9 @@ export default function ClientProviders({
 }) {
   return (
     <SessionProvider>
-      <AuthProvider>
-        <NotificationProvider>
-          <WalletProvider>
+      <NotificationProvider>
+        <WalletProvider>
+          <AuthProvider>
             <StockProvider>
               <LendingProvider>
                 <WalletLayout>
@@ -94,9 +94,9 @@ export default function ClientProviders({
                 <Toaster position="top-right" />
               </LendingProvider>
             </StockProvider>
-          </WalletProvider>
-        </NotificationProvider>
-      </AuthProvider>
+          </AuthProvider>
+        </WalletProvider>
+      </NotificationProvider>
     </SessionProvider>
   );
 }
