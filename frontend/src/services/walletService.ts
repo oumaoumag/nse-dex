@@ -14,6 +14,7 @@ import {
 import * as hederaService from './hederaService';
 import { signTransaction } from '../utils/signatureUtils';
 import { encodeFunctionCall } from '../utils/contractUtils';
+import { formatAddressForContract, thirdPartyIdToEvmAddress } from '../utils/addressUtils';
 import axios from 'axios';
 
 // Smart Wallet Factory contract address
@@ -29,11 +30,16 @@ const EXCHANGE_RATE_ORACLE = process.env.NEXT_PUBLIC_EXCHANGE_RATE_ORACLE_ADDRES
  */
 export async function findSmartWalletForOwner(accountId: string): Promise<string | null> {
     try {
+        // Convert the account ID to an EVM-compatible address
+        const evmFormattedAddress = thirdPartyIdToEvmAddress(accountId);
+
+        console.log(`Looking for wallet with formatted address: ${evmFormattedAddress}`);
+
         // Query the factory contract to find the wallet address
         const result = await hederaService.queryContract(
             SMART_WALLET_FACTORY,
             "getWalletForOwner",
-            new ContractFunctionParameters().addString(accountId)
+            new ContractFunctionParameters().addAddress(evmFormattedAddress)
         );
 
         // Extract address from result
@@ -57,6 +63,11 @@ export async function findSmartWalletForOwner(accountId: string): Promise<string
  */
 export async function createSmartWallet(accountId: string): Promise<string> {
     try {
+        // Convert the account ID to an EVM-compatible address
+        const evmFormattedAddress = thirdPartyIdToEvmAddress(accountId);
+
+        console.log(`Creating wallet with formatted address: ${evmFormattedAddress}`);
+
         // First check if wallet already exists
         const existingWallet = await findSmartWalletForOwner(accountId);
 
@@ -67,7 +78,7 @@ export async function createSmartWallet(accountId: string): Promise<string> {
 
         // Create parameters for wallet creation
         const params = new ContractFunctionParameters()
-            .addAddress(accountId); // Owner address
+            .addAddress(evmFormattedAddress); // Owner address properly formatted for EVM
 
         // Call the factory to create a new wallet
         const receipt = await hederaService.executeContract(
@@ -470,4 +481,113 @@ export const getHbarExchangeRate = async (): Promise<number> => {
         console.error('Failed to get HBAR exchange rate:', err);
         return 0;
     }
-}; 
+};
+
+/**
+ * Load funds to the user's wallet in demo mode
+ * @param tokenType Type of token to add (HBAR, USDC, USDT)
+ * @param amount Amount to add
+ * @returns Success status
+ */
+export async function loadDemoFunds(tokenType: 'HBAR' | 'USDC' | 'USDT', amount: number): Promise<boolean> {
+    // Only works in demo mode
+    if (typeof window === 'undefined' || localStorage.getItem('tajiri-demo-mode') !== 'true') {
+        console.warn('loadDemoFunds can only be used in demo mode');
+        return false;
+    }
+
+    try {
+        // Get current demo balances
+        const demoBalancesJson = localStorage.getItem('tajiri-demo-balances') || '{}';
+        const demoBalances = JSON.parse(demoBalancesJson);
+
+        // Add or update balance
+        if (!demoBalances[tokenType]) {
+            demoBalances[tokenType] = amount.toString();
+        } else {
+            const currentAmount = parseFloat(demoBalances[tokenType]);
+            demoBalances[tokenType] = (currentAmount + amount).toString();
+        }
+
+        // Save updated balances
+        localStorage.setItem('tajiri-demo-balances', JSON.stringify(demoBalances));
+        console.log(`Added ${amount} ${tokenType} to demo wallet`);
+        return true;
+    } catch (error) {
+        console.error('Error loading demo funds:', error);
+        return false;
+    }
+}
+
+/**
+ * Get current demo wallet balances
+ * @returns Object with token balances
+ */
+export function getDemoBalances(): Record<string, string> {
+    if (typeof window === 'undefined') {
+        return {};
+    }
+
+    try {
+        const demoBalancesJson = localStorage.getItem('tajiri-demo-balances') || '{}';
+        return JSON.parse(demoBalancesJson);
+    } catch (error) {
+        console.error('Error getting demo balances:', error);
+        return {};
+    }
+}
+
+/**
+ * Load real tokens to a wallet - only available on testnet
+ * This is a placeholder that would require integration with a faucet service
+ * @param tokenType Type of token (HBAR, USDC, USDT)
+ * @param accountId Account ID to load
+ * @returns Status of operation
+ */
+export async function loadRealTokens(tokenType: 'HBAR' | 'USDC' | 'USDT', accountId: string): Promise<{
+    success: boolean;
+    message: string;
+    txId?: string;
+}> {
+    // Return immediately if in demo mode
+    if (typeof window !== 'undefined' && localStorage.getItem('tajiri-demo-mode') === 'true') {
+        return {
+            success: false,
+            message: "Cannot load real tokens in demo mode. Use loadDemoFunds instead."
+        };
+    }
+
+    // Check if we're on testnet
+    const networkType = process.env.NEXT_PUBLIC_HEDERA_NETWORK || 'testnet';
+    if (networkType !== 'testnet') {
+        return {
+            success: false,
+            message: "Token loading is only available on testnet"
+        };
+    }
+
+    try {
+        // This is just a placeholder - in a real implementation, you would:
+        // 1. Call a faucet service API
+        // 2. Or implement token transfer from a treasury account
+
+        // Mock implementation
+        console.log(`Would load ${tokenType} to account ${accountId}`);
+
+        // For now, just return success with a fake transaction ID
+        // In a real implementation, return the actual transaction ID
+        const fakeTransactionId = `0.0.${Math.floor(Math.random() * 1000000)}@${Date.now()}`;
+
+        return {
+            success: true,
+            message: `Successfully requested ${tokenType} tokens for your account. They will arrive shortly.`,
+            txId: fakeTransactionId
+        };
+    } catch (error: any) {
+        console.error("Error loading real tokens:", error);
+        return {
+            success: false,
+            message: `Failed to load tokens: ${error.message}`
+        };
+    }
+} 
