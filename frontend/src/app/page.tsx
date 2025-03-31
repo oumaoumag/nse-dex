@@ -8,7 +8,7 @@ import { useWallet } from '@/contexts/WalletContext';
 export default function HomePage() {
     const router = useRouter();
     const { data: session, status } = useSession();
-    const { isConnected, connect } = useWallet();
+    const { isConnected, smartWalletId } = useWallet();
 
     useEffect(() => {
         // Check authentication status
@@ -22,16 +22,12 @@ export default function HomePage() {
             return;
         }
         
-        // If authenticated but wallet not connected, auto-connect wallet
-        if (!isConnected) {
-            connect();
-        }
-
-        // Redirect to marketplace when authenticated and wallet is connected
-        if (session && isConnected) {
+        // Redirect to marketplace when authenticated
+        // The wallet will be automatically created by the SmartWalletManager
+        if (session) {
             router.push('/marketplace');
         }
-    }, [isConnected, router, connect, session, status]);
+    }, [router, session, status]);
 
   return (
       <div className="flex items-center justify-center h-[80vh]">
@@ -45,7 +41,7 @@ export default function HomePage() {
               <div className="w-10 h-10 border-4 border-decode-green border-t-transparent rounded-full animate-spin mx-auto"></div>
               <p className="mt-6 text-decode-white/70">
                   {status === 'loading' ? 'Loading...' : 
-                   session ? 'Setting up your wallet...' : 
+                      session ? 'Setting up your session...' : 
                    'Redirecting to login...'}
               </p>
       </div>

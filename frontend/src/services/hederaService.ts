@@ -9,7 +9,8 @@ import {
     ContractFunctionParameters,
     ContractFunctionResult,
     ContractId,
-    LedgerId
+    LedgerId,
+    TransactionReceipt
 } from '@hashgraph/sdk';
 import { createClientFromEnv } from '../utils/hederaConfig';
 
@@ -17,27 +18,41 @@ import { createClientFromEnv } from '../utils/hederaConfig';
 let hederaClient: Client | null = null;
 
 /**
- * Builds and initializes a Hedera client based on environment settings
- * @returns Initialized Hedera client
+ * Initializes the Hedera client with operator credentials
+ * @returns The initialized client
  */
-export function getClient(): Client {
+export function initializeClient(): Client {
     if (hederaClient) return hederaClient;
 
-    try {
-        // Create client using the configuration utility
-        hederaClient = createClientFromEnv();
+    const operatorId = getOperatorAccountId();
+    const operatorKey = getOperatorPrivateKey();
 
-        console.log(`Hedera client initialized for ${process.env.NEXT_PUBLIC_HEDERA_NETWORK || 'testnet'}`);
-
-        return hederaClient;
-    } catch (err) {
-        console.error('Failed to initialize Hedera client:', err);
-        throw new Error(`Failed to initialize Hedera client: ${err instanceof Error ? err.message : String(err)}`);
+    if (!operatorId || !operatorKey) {
+        throw new Error('Environment variables for operator ID and private key must be set');
     }
+
+    // Initialize a client with mainnet or testnet
+    hederaClient = Client.forTestnet();
+
+    // Set the operator account ID and private key
+    hederaClient.setOperator(operatorId, PrivateKey.fromString(operatorKey));
+
+    return hederaClient;
 }
 
 /**
- * Resets the client, useful for tests or when changing network
+ * Gets the current Hedera client or initializes a new one
+ * @returns The Hedera client
+ */
+export function getClient(): Client {
+    if (!hederaClient) {
+        return initializeClient();
+    }
+    return hederaClient;
+}
+
+/**
+ * Resets the client instance
  */
 export function resetClient(): void {
     hederaClient = null;
@@ -152,7 +167,7 @@ export async function executeContract(
     functionName: string,
     params?: ContractFunctionParameters,
     payableAmount?: number
-): Promise<any> {
+): Promise<TransactionReceipt> {
     const client = getClient();
 
     let tx = new ContractExecuteTransaction()
@@ -307,4 +322,61 @@ export async function getVerifiedClient(): Promise<Client> {
     }
 
     return client;
+}
+
+/**
+ * Converts a string to a bytes32 representation
+ * @param functionName The string to convert
+ * @returns The bytes32 representation
+ */
+export function stringToBytes32(functionName: string): string {
+    // Convert the function name to hex and pad to 32 bytes
+    let hex = '';
+    for (let i = 0; i < functionName.length; i++) {
+        const code = functionName.charCodeAt(i);
+        const n = code.toString(16);
+        hex += n.length < 2 ? '0' + n : n;
+    }
+
+    // Pad to 64 characters (32 bytes)
+    hex = hex.padEnd(64, '0');
+
+    return '0x' + hex;
+}
+
+/**
+ * Gets the contract balance in HBAR
+ * @param contractId The contract ID to query
+ * @returns The contract balance in HBAR as a string
+ */
+export async function getContractBalance(contractId: string): Promise<string> {
+    const client = getClient();
+
+    try {
+        const balance = await new ContractId(contractId).getBalance(client);
+        return balance.hbars.toString();
+    } catch (err) {
+        console.error(`Failed to get balance for contract ${contractId}:`, err);
+        throw err;
+    }
+}
+
+/**
+ * Converts a string to a ContractId object
+ * @param id The ID string
+ * @returns The ContractId object
+ */
+function getContractId(id: string): ContractId {
+    try {
+        if (id.startsWith('0x')) {
+            return ContractId.fromSolidityAddress(id);
+        } else if (id.includes('.')) {
+            return ContractId.fromString(id);
+        } else {
+            return ContractId.fromString(id);
+        }
+    } catch (err) {
+        console.error(`Invalid contract ID format: ${id}`, err);
+        throw new Error(`Invalid contract ID format: ${id}`);
+    }
 } 
