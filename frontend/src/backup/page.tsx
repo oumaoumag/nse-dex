@@ -1,22 +1,25 @@
 'use client';
 
+import React, { useState } from 'react';
+import { useSession, signIn } from 'next-auth/react';
+import { useWallet } from '@/contexts/WalletContext';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useWallet } from '@/contexts/WalletContext';
-import { useSession } from 'next-auth/react';
 import GoogleLoginButton from '@/components/GoogleLoginButton';
 import HeroSection from '@/components/ui/HeroSection';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardTitle } from '@/components/ui/Card';
 import StatusIndicator from '@/components/ui/StatusIndicator';
 
-export default function Home() {
-  const { connectWallet, isLoading, isConnected } = useWallet();
-  const { data: session } = useSession();
+export default function BackupPage() {
+  const { data: session, status } = useSession();
+  const { isConnected, smartWalletId } = useWallet();
+  const [activeTab, setActiveTab] = useState('what');
+  const isAuthenticated = status === 'authenticated';
 
-  const handleConnectWallet = (e: React.MouseEvent) => {
+  const handleSignIn = (e: React.MouseEvent) => {
     e.preventDefault();
-    connectWallet();
+    signIn('google');
   };
 
   // Feature icons and data
@@ -51,158 +54,179 @@ export default function Home() {
   ];
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Hero Section with consistent styling using the HeroSection component */}
-      <HeroSection
-        title="TRADE KENYAN STOCKS ON HEDERA"
-        highlightedWord="STOCKS"
-        description="Connect your wallet and trade tokenized stocks from Nairobi Securities Exchange (NSE), making investing accessible to everyone through blockchain technology."
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-          <div className="space-y-8">
-            <div className="flex flex-col sm:flex-row gap-4 pt-2">
-              {!isConnected && (
-                <Button
-                  onClick={handleConnectWallet}
-                  disabled={isLoading}
-                  loading={isLoading}
-                  variant="primary"
-                >
-                  Connect Wallet
-                </Button>
-              )}
-              <div className="relative z-10">
-                <GoogleLoginButton />
-              </div>
-              <Button href="/marketplace" variant="secondary">
-                Explore Marketplace
-              </Button>
-            </div>
-            {session && !isConnected && (
-              <StatusIndicator
-                type="info"
-                title="Google Account Connected"
-                message="You're signed in with Google. Connect your wallet to start trading tokenized stocks."
-                className="max-w-md"
-              />
-            )}
-          </div>
-          <div className="relative">
-            <Card variant="default" padding="large" className="rounded-2xl overflow-hidden shadow-xl backdrop-blur-sm">
-              <div className="flex flex-col h-full">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 bg-decode-green/20 rounded-full flex items-center justify-center">
-                      <svg className="h-5 w-5 text-decode-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
-                    </div>
-                    <CardTitle>NSE Tokenized</CardTitle>
-                  </div>
-                  <div className="text-sm text-decode-green">Live</div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 w-full">
-                  <Card variant="default" padding="small" hover="default" className="rounded-lg transform hover:scale-105 transition-all">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-sm text-gray-400">SCOM</div>
-                      <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">
-                        <svg className="h-3 w-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="text-lg font-semibold text-decode-white">+3.2%</div>
-                    <div className="text-xs text-gray-400 mt-1">24h change</div>
-                  </Card>
-                  <Card variant="default" padding="small" hover="default" className="rounded-lg transform hover:scale-105 transition-all">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-sm text-gray-400">EQTY</div>
-                      <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">
-                        <svg className="h-3 w-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="text-lg font-semibold text-decode-white">+1.7%</div>
-                    <div className="text-xs text-gray-400 mt-1">24h change</div>
-                  </Card>
-                  <Card variant="default" padding="small" hover="default" className="rounded-lg transform hover:scale-105 transition-all">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-sm text-gray-400">KCB</div>
-                      <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">
-                        <svg className="h-3 w-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="text-lg font-semibold text-decode-white">+2.5%</div>
-                    <div className="text-xs text-gray-400 mt-1">24h change</div>
-                  </Card>
-                  <Card variant="default" padding="small" hover="default" className="rounded-lg transform hover:scale-105 transition-all">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-sm text-gray-400">EABL</div>
-                      <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">
-                        <svg className="h-3 w-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="text-lg font-semibold text-decode-white">+1.5%</div>
-                    <div className="text-xs text-gray-400 mt-1">24h change</div>
-                  </Card>
-                </div>
-              </div>
-            </Card>
-          </div>
-        </div>
-      </HeroSection>
+    <div className="min-h-screen bg-decode-black text-decode-white">
+      <div className="container mx-auto px-4 py-12">
+        <h1 className="text-3xl md:text-4xl font-bold mb-8">
+          <span className="decode-gradient bg-clip-text text-transparent">Smart Wallet</span> Backup
+        </h1>
 
-      {/* Features Section */}
-      <div className="py-20 bg-decode-black">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center mb-16">
-            <div className="h-1 w-16 bg-decode-green mb-6 mx-auto"></div>
-            <h2 className="decode-heading text-3xl md:text-4xl text-decode-white mb-6">ACCOUNT ABSTRACTION AND <span className="text-decode-green">SMART WALLETS</span></h2>
-            <p className="text-lg text-gray-400">Experience the full benefits of blockchain technology without the complexity. Our smart wallet system makes trading stocks simple and secure.</p>
+        <div className="bg-decode-black/50 border border-decode-green/20 rounded-xl p-6 mb-8">
+          <div className="flex border-b border-decode-green/20 mb-6">
+            <button
+              className={`py-2 px-4 font-medium ${activeTab === 'what' ? 'text-decode-green border-b-2 border-decode-green' : 'text-gray-400'}`}
+              onClick={() => setActiveTab('what')}
+            >
+              What is Backup?
+            </button>
+            <button
+              className={`py-2 px-4 font-medium ${activeTab === 'how' ? 'text-decode-green border-b-2 border-decode-green' : 'text-gray-400'}`}
+              onClick={() => setActiveTab('how')}
+            >
+              How it Works
+            </button>
+            <button
+              className={`py-2 px-4 font-medium ${activeTab === 'setup' ? 'text-decode-green border-b-2 border-decode-green' : 'text-gray-400'}`}
+              onClick={() => setActiveTab('setup')}
+            >
+              Setup Backup
+            </button>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <Card key={index} variant="default" padding="large" className="rounded-lg hover:border-decode-green/60 transition-all">
-                <div className="h-12 w-12 bg-decode-green/20 rounded-full flex items-center justify-center mb-6">
-                  {feature.icon}
-                </div>
-                <CardTitle className="mb-4">{feature.title}</CardTitle>
-                <p className="text-gray-400">{feature.description}</p>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </div>
-      
-      {/* CTA Section */}
-      <div className="py-20 bg-gradient-to-br from-decode-black via-decode-black to-black">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="decode-heading text-3xl md:text-5xl text-decode-white mb-8">READY TO START <span className="text-decode-green">TRADING?</span></h2>
-            <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto">Join thousands of traders already using Tajiri to access the Nairobi Securities Exchange.</p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              {!isConnected && (
-                <Button
-                  onClick={handleConnectWallet}
-                  disabled={isLoading}
-                  loading={isLoading}
-                  variant="primary"
-                >
-                  Connect Wallet
-                </Button>
-              )}
-              <Button href="/learn" variant="secondary">
-                Learn More
-              </Button>
+
+          {activeTab === 'what' && (
+            <div>
+              <h2 className="text-xl font-bold mb-4">What is Smart Wallet Backup?</h2>
+              <p className="text-gray-300 mb-4">
+                Smart wallet backup is a security feature that ensures you never lose access to your assets, even if you lose your primary access method.
+              </p>
+              <p className="text-gray-300 mb-4">
+                Unlike traditional wallets where losing your private key means losing your assets forever, smart wallets allow for social recovery through trusted guardians.
+              </p>
+              <div className="bg-decode-green/10 border border-decode-green/30 rounded-lg p-4 text-sm my-6">
+                <h3 className="text-decode-green font-medium mb-2">Why Backup Matters</h3>
+                <p className="text-gray-300">
+                  Over 20% of all cryptocurrency (worth billions of dollars) has been permanently lost due to users losing access to their wallets. Smart wallet backup solves this problem.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
+
+          {activeTab === 'how' && (
+            <div>
+              <h2 className="text-xl font-bold mb-4">How Smart Wallet Backup Works</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div className="bg-decode-green/5 border border-decode-green/20 rounded-lg p-4">
+                  <div className="w-10 h-10 bg-decode-green/10 rounded-full flex items-center justify-center mb-3">
+                    <span className="text-decode-green font-bold">1</span>
+                  </div>
+                  <h3 className="font-medium mb-2">Add Guardians</h3>
+                  <p className="text-sm text-gray-400">
+                    You select trusted contacts (friends, family) or devices to serve as your guardians.
+                  </p>
+                </div>
+                <div className="bg-decode-green/5 border border-decode-green/20 rounded-lg p-4">
+                  <div className="w-10 h-10 bg-decode-green/10 rounded-full flex items-center justify-center mb-3">
+                    <span className="text-decode-green font-bold">2</span>
+                  </div>
+                  <h3 className="font-medium mb-2">Guardian Approval</h3>
+                  <p className="text-sm text-gray-400">
+                    If you lose access, a threshold of your guardians must approve your recovery request.
+                  </p>
+                </div>
+                <div className="bg-decode-green/5 border border-decode-green/20 rounded-lg p-4">
+                  <div className="w-10 h-10 bg-decode-green/10 rounded-full flex items-center justify-center mb-3">
+                    <span className="text-decode-green font-bold">3</span>
+                  </div>
+                  <h3 className="font-medium mb-2">Regain Access</h3>
+                  <p className="text-sm text-gray-400">
+                    Once approved, you can restore access to your wallet and all your assets remain safe.
+                  </p>
+                </div>
+              </div>
+              <p className="text-gray-300 mb-4">
+                All of this happens without any central authority ever holding custody of your assets. You always remain in control, with the guardians only able to help you recover access, not control your funds.
+              </p>
+            </div>
+          )}
+
+          {activeTab === 'setup' && (
+            <div>
+              <h2 className="text-xl font-bold mb-4">Set Up Your Backup</h2>
+
+              {!isAuthenticated ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-300 mb-4">
+                    You need to sign in first to set up your smart wallet backup.
+                  </p>
+                  <button
+                    className="bg-decode-green hover:bg-decode-green/80 text-white py-3 px-6 rounded-lg font-medium transition duration-300"
+                    onClick={handleSignIn}
+                  >
+                    Sign In to Continue
+                  </button>
+                </div>
+              ) : !smartWalletId ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-300 mb-4">
+                    Your smart wallet is being set up. Please wait a moment before setting up backup.
+                  </p>
+                  <div className="animate-spin w-8 h-8 border-4 border-decode-green/30 border-t-decode-green rounded-full mx-auto"></div>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-gray-300 mb-6">
+                      Follow these steps to set up guardian backup for your smart wallet.
+                    </p>
+
+                    <div className="space-y-6">
+                      <div className="bg-decode-green/5 border border-decode-green/20 rounded-lg p-4">
+                        <h3 className="font-medium mb-2">1. Add Guardian Email</h3>
+                        <p className="text-sm text-gray-400 mb-3">
+                          Enter the email address of a trusted person who can help you recover your wallet.
+                        </p>
+                        <div className="flex">
+                          <input
+                            type="email"
+                            placeholder="guardian@example.com"
+                            className="bg-decode-black border border-decode-green/30 rounded-l-lg px-4 py-2 flex-grow focus:outline-none focus:border-decode-green"
+                          />
+                          <button className="bg-decode-green hover:bg-decode-green/80 text-white py-2 px-4 rounded-r-lg font-medium transition duration-300">
+                            Add
+                          </button>
+                      </div>
+                    </div>
+
+                        <div className="bg-decode-green/5 border border-decode-green/20 rounded-lg p-4">
+                          <h3 className="font-medium mb-2">2. Set Threshold</h3>
+                          <p className="text-sm text-gray-400 mb-3">
+                            Choose how many guardians need to approve for recovery (recommended: at least 2)
+                          </p>
+                          <select className="bg-decode-black border border-decode-green/30 rounded-lg px-4 py-2 w-full focus:outline-none focus:border-decode-green">
+                            <option value="1">1 guardian (less secure)</option>
+                            <option value="2" selected>2 guardians (recommended)</option>
+                            <option value="3">3 guardians (high security)</option>
+                          </select>
+                        </div>
+
+                        <div className="bg-decode-green/5 border border-decode-green/20 rounded-lg p-4">
+                          <h3 className="font-medium mb-2">3. Set Recovery Delay</h3>
+                          <p className="text-sm text-gray-400 mb-3">
+                            Choose a waiting period before recovery completes, giving you time to cancel if unauthorized.
+                          </p>
+                          <select className="bg-decode-black border border-decode-green/30 rounded-lg px-4 py-2 w-full focus:outline-none focus:border-decode-green">
+                            <option value="1">24 hours</option>
+                            <option value="2" selected>48 hours (recommended)</option>
+                            <option value="3">72 hours</option>
+                          </select>
+                        </div>
+
+                        <button className="w-full bg-decode-green hover:bg-decode-green/80 text-white py-3 px-6 rounded-lg font-medium transition duration-300">
+                          Set Up Guardian Recovery
+                        </button>
+                      </div>
+                    </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-decode-blue/5 border border-decode-blue/20 rounded-xl p-6">
+          <h2 className="text-xl font-bold mb-4">Need Help?</h2>
+          <p className="text-gray-300 mb-4">
+            If you have any questions about setting up your backup or how recovery works, our support team is here to help.
+          </p>
+          <a href="/support" className="text-decode-blue hover:text-decode-blue/80 font-medium transition duration-300">
+            Contact Support →
+          </a>
         </div>
       </div>
     </div>
