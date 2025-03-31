@@ -131,6 +131,12 @@ export const StockProvider: React.FC<StockProviderProps> = ({ children }) => {
         await fetchStocks();
       } catch (err) {
         console.error('Error initializing stock context:', err);
+        // Make sure we still load stocks even if exchange rate fails
+        try {
+          await fetchStocks();
+        } catch (stockErr) {
+          console.error('Fatal error loading stocks:', stockErr);
+        }
       }
     };
 
@@ -173,27 +179,39 @@ export const StockProvider: React.FC<StockProviderProps> = ({ children }) => {
       // Check if manageStockContractId is valid before proceeding
       if (!manageStockContractId) {
         console.error('MANAGE_STOCK_CONTRACT_ID is not configured in environment variables');
+        // Use a default exchange rate as fallback
+        setExchangeRate(0.66); // Typical HBAR/USD rate as fallback
         return;
       }
 
       console.log('Fetching HBAR exchange rate...');
 
-      // Use the improved queryContract function with retry logic
-      const result = await hederaService.queryContract(
-        manageStockContractId,
-        "getHbarExchangeRate"
-      );
+      // Try to query the contract
+      try {
+        // Use the improved queryContract function with retry logic
+        const result = await hederaService.queryContract(
+          manageStockContractId,
+          "getHbarExchangeRate"
+        );
 
-      // The exchange rate is returned as tiny cents per tiny bar (8 decimal places)
-      // We convert to a more usable number (USD per HBAR)
-      const rateValue = Number(result.getInt64(0));
-      const adjustedRate = rateValue / 100000000;
+        // The exchange rate is returned as tiny cents per tiny bar (8 decimal places)
+        // We convert to a more usable number (USD per HBAR)
+        const rateValue = Number(result.getInt64(0));
+        const adjustedRate = rateValue / 100000000;
 
-      setExchangeRate(adjustedRate);
-      console.log(`HBAR exchange rate: $${adjustedRate}`);
+        setExchangeRate(adjustedRate);
+        console.log(`HBAR exchange rate: $${adjustedRate}`);
+      } catch (queryErr) {
+        console.error('Exchange rate query failed:', queryErr);
+        // Use a default exchange rate as fallback
+        setExchangeRate(0.66); // Typical HBAR/USD rate as fallback
+        console.log('Using fallback exchange rate: $0.66 USD per HBAR');
+      }
     } catch (err: any) {
       logError('fetchExchangeRate', err);
-      // Non-blocking error, continue with default exchange rate
+      // Use a default exchange rate as fallback
+      setExchangeRate(0.66); // Typical HBAR/USD rate as fallback
+      console.log('Using fallback exchange rate due to error: $0.66 USD per HBAR');
     }
   };
 
