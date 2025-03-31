@@ -1,0 +1,58 @@
+[
+    {
+        "stockSymbol": "SCOM",
+        "stockName": "Safaricom PLC",
+        "stockPriceUSD": 25.15,
+        "stockPriceHBAR": 38.25,
+        "stockContractAddress": "0x0000000000000000000000000000000000584992"
+    },
+    {
+        "stockSymbol": "EQTY",
+        "stockName": "Equity Group Holdings",
+        "stockPriceUSD": 29.65,
+        "stockPriceHBAR": 45.10,
+        "stockContractAddress": "0x0000000000000000000000000000000000584993"
+    },
+    {
+        "stockSymbol": "KCB",
+        "stockName": "KCB Group PLC",
+        "stockPriceUSD": 28.18,
+        "stockPriceHBAR": 42.85,
+        "stockContractAddress": "0x0000000000000000000000000000000000584994"
+    },
+    {
+        "stockSymbol": "EABL",
+        "stockName": "East African Breweries Limited",
+        "stockPriceUSD": 113.25,
+        "stockPriceHBAR": 172.25,
+        "stockContractAddress": "0x0000000000000000000000000000000000584995"
+    },
+    {
+        "stockSymbol": "BAT",
+        "stockName": "British American Tobacco Kenya",
+        "stockPriceUSD": 312.30,
+        "stockPriceHBAR": 475.00,
+        "stockContractAddress": "0x0000000000000000000000000000000000584996"
+    },
+    {
+        "stockSymbol": "COOP",
+        "stockName": "Cooperative Bank of Kenya",
+        "stockPriceUSD": 8.42,
+        "stockPriceHBAR": 12.80,
+        "stockContractAddress": "0x0000000000000000000000000000000000584997"
+    },
+    {
+        "stockSymbol": "ABSA",
+        "stockName": "ABSA Bank Kenya",
+        "stockPriceUSD": 8.71,
+        "stockPriceHBAR": 13.25,
+        "stockContractAddress": "0x0000000000000000000000000000000000584998"
+    },
+    {
+        "stockSymbol": "KEGN",
+        "stockName": "Kenya Electricity Generating Company",
+        "stockPriceUSD": 2.77,
+        "stockPriceHBAR": 4.22,
+        "stockContractAddress": "0x0000000000000000000000000000000000584999"
+    }
+]
