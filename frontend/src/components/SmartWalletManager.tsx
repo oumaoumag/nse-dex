@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useWallet } from '@/contexts/WalletContext';
 import * as walletService from '@/services/walletService';
+import { createDemoAddress } from '@/utils/addressUtils';
 
 /**
  * SmartWalletManager component responsible for automatically creating and managing
@@ -15,11 +16,13 @@ export const SmartWalletManager: React.FC = () => {
         smartWalletId,
         setSmartWalletId,
         isConnected,
-        setError
+        setError,
+        client
     } = useWallet();
     const [isLoading, setIsLoading] = useState(false);
     const [hasChecked, setHasChecked] = useState(false);
     const [attempts, setAttempts] = useState(0);
+    const [isDemoMode, setIsDemoMode] = useState(false);
 
     useEffect(() => {
         // Only proceed for authenticated users
@@ -35,27 +38,40 @@ export const SmartWalletManager: React.FC = () => {
         const setupSmartWallet = async () => {
             setIsLoading(true);
             try {
+                // Check for demo mode in localStorage
+                const useDemoMode = localStorage.getItem('tajiri-demo-mode') === 'true';
+
+                if (useDemoMode) {
+                    console.log("Using demo mode for wallet...");
+                    const demoAddress = createDemoAddress();
+                    setSmartWalletId(demoAddress);
+                    setIsDemoMode(true);
+                    setHasChecked(true);
+                    setIsLoading(false);
+                    return;
+                }
+
+                // Check if we have a working client before proceeding
+                if (!client || !client.operatorAccountId) {
+                    console.warn("No valid Hedera client, switching to demo mode");
+                    const demoAddress = createDemoAddress();
+                    setSmartWalletId(demoAddress);
+                    setIsDemoMode(true);
+                    setHasChecked(true);
+                    setIsLoading(false);
+                    localStorage.setItem('tajiri-demo-mode', 'true');
+                    return;
+                }
+
                 // Check if the user already has a smart wallet
                 const existingWalletId = localStorage.getItem('tajiri-smart-wallet-id');
 
                 if (existingWalletId) {
                     console.log("Found existing smart wallet ID in local storage:", existingWalletId);
-                    // Verify that the smart wallet exists and is valid before using it
-                    try {
-                        const isValid = await walletService.findSmartWalletForOwner(session.user.id);
-                        if (isValid && isValid === existingWalletId) {
-                            console.log("Verified existing smart wallet is valid:", existingWalletId);
-                            setSmartWalletId(existingWalletId);
-                            setHasChecked(true);
-                            return;
-                        } else {
-                            console.warn("Stored wallet ID doesn't match or is invalid, will create new one");
-                            localStorage.removeItem('tajiri-smart-wallet-id');
-                        }
-                    } catch (verifyErr) {
-                        console.error("Error verifying existing wallet:", verifyErr);
-                        // Continue to try creating a new one
-                    }
+                    setSmartWalletId(existingWalletId);
+                    setHasChecked(true);
+                    setIsLoading(false);
+                    return;
                 }
 
                 console.log("Looking for existing smart wallet for user:", session.user.id);
@@ -66,6 +82,7 @@ export const SmartWalletManager: React.FC = () => {
                     console.log("Found existing smart wallet:", foundWalletId);
                     localStorage.setItem('tajiri-smart-wallet-id', foundWalletId);
                     setSmartWalletId(foundWalletId);
+                    setHasChecked(true);
                 } else {
                     // If not found, create a new smart wallet
                     console.log("Creating new smart wallet for user:", session.user.id);
@@ -78,20 +95,41 @@ export const SmartWalletManager: React.FC = () => {
                         await new Promise(resolve => setTimeout(resolve, backoffTime));
                     }
 
-                    const newWalletId = await walletService.createSmartWallet(session.user.id);
+                    try {
+                        const newWalletId = await walletService.createSmartWallet(session.user.id);
+                        console.log("Created new smart wallet:", newWalletId);
+                        localStorage.setItem('tajiri-smart-wallet-id', newWalletId);
+                        setSmartWalletId(newWalletId);
+                        setHasChecked(true);
+                    } catch (createErr) {
+                        console.error("Error creating wallet:", createErr);
 
-                    console.log("Created new smart wallet:", newWalletId);
-                    localStorage.setItem('tajiri-smart-wallet-id', newWalletId);
-                    setSmartWalletId(newWalletId);
+                        // If we've tried multiple times without success, use demo mode
+                        if (attempts >= 2) {
+                            console.warn("Switching to demo mode after failed wallet creation attempts");
+                            const demoAddress = createDemoAddress();
+                            setSmartWalletId(demoAddress);
+                            setIsDemoMode(true);
+                            localStorage.setItem('tajiri-demo-mode', 'true');
+                            setError("Network connectivity issues detected. Using demo mode for wallet functionality.");
+                        } else {
+                            throw createErr; // Re-throw to be caught by outer catch
+                        }
+                    }
                 }
             } catch (err: any) {
                 console.error("Error setting up smart wallet:", err);
 
                 // If we've tried multiple times and still failing, show a more user-friendly error
                 if (attempts >= 2) {
+                    const demoAddress = createDemoAddress();
+                    setSmartWalletId(demoAddress);
+                    setIsDemoMode(true);
+                    localStorage.setItem('tajiri-demo-mode', 'true');
+
                     setError(
-                        `Wallet creation is taking longer than expected. The Hedera network might be congested. ` +
-                        `Please visit /debug for more information or try again later.`
+                        `Wallet connection issues detected. Using demo mode for now. ` +
+                        `Some functionality may be limited.`
                     );
                     setHasChecked(true); // Stop retrying
                 } else {
@@ -112,7 +150,7 @@ export const SmartWalletManager: React.FC = () => {
         if (isConnected) {
             setupSmartWallet();
         }
-    }, [session, status, smartWalletId, setSmartWalletId, isConnected, hasChecked, setError, attempts]);
+    }, [session, status, smartWalletId, setSmartWalletId, isConnected, hasChecked, setError, attempts, client]);
 
     // This component doesn't render anything, it just manages the smart wallet
     return null;
