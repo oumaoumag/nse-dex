@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useStock } from '@/contexts/StockContext';
 import { Stock } from '@/types/stock';
 import MintWithStablecoin from './MintWithStablecoin';
+import { TokenMinter } from '@/components/TokenMinter';
 
 const StockMintRedeem: React.FC = () => {
     const {
@@ -20,7 +21,7 @@ const StockMintRedeem: React.FC = () => {
     const [userTokenBalances, setUserTokenBalances] = useState<{[key: string]: number}>({});
 
     // UI state
-    const [activeTab, setActiveTab] = useState<'mint-hbar' | 'mint-stablecoin' | 'redeem'>('mint-hbar');
+    const [activeTab, setActiveTab] = useState<'mint-hbar' | 'mint-stablecoin' | 'redeem' | 'multi-token'>('mint-hbar');
 
     // Form state
     const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
@@ -135,6 +136,16 @@ const StockMintRedeem: React.FC = () => {
         return userBalance >= tokenAmount;
     };
 
+    // Handle transaction success from TokenMinter
+    const handleMintSuccess = (txId: string) => {
+        setTransactionStatus(`Transaction successful. TxID: ${txId}`);
+
+        // Clear status after delay
+        setTimeout(() => {
+            setTransactionStatus(null);
+        }, 5000);
+    };
+
     return (
         <div className="bg-white dark:bg-primary-900 rounded-xl shadow-md overflow-hidden">
             <div className="p-6">
@@ -202,38 +213,49 @@ const StockMintRedeem: React.FC = () => {
                     </div>
                 )}
                 
-                {/* Tabs */}
-                <div className="flex mb-6 border-b border-primary-200 dark:border-primary-700">
-                    <button
-                        className={`px-4 py-2 font-medium text-sm ${activeTab === 'mint-hbar'
-                            ? 'text-secondary-600 border-b-2 border-secondary-600'
-                            : 'text-primary-600 dark:text-primary-400 hover:text-secondary-500 dark:hover:text-secondary-400'
+                {/* Tab interface */}
+                <div className="mb-6">
+                    <div className="flex space-x-1 border-b border-primary-200 dark:border-primary-700">
+                        <button
+                            onClick={() => setActiveTab('mint-hbar')}
+                            className={`py-2 px-4 text-sm font-medium ${activeTab === 'mint-hbar'
+                                    ? 'border-b-2 border-secondary-500 text-secondary-600 dark:text-secondary-400'
+                                    : 'text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300'
+                                }`}
+                        >
+                            Mint with HBAR
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('mint-stablecoin')}
+                            className={`py-2 px-4 text-sm font-medium ${activeTab === 'mint-stablecoin'
+                                    ? 'border-b-2 border-secondary-500 text-secondary-600 dark:text-secondary-400'
+                                    : 'text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300'
+                                }`}
+                        >
+                            Mint with Stablecoin
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('multi-token')}
+                            className={`py-2 px-4 text-sm font-medium ${activeTab === 'multi-token'
+                                    ? 'border-b-2 border-secondary-500 text-secondary-600 dark:text-secondary-400'
+                                    : 'text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300'
                             }`}
-                        onClick={() => setActiveTab('mint-hbar')}
-                    >
-                        Mint with HBAR
-                    </button>
-                    <button
-                        className={`px-4 py-2 font-medium text-sm ${activeTab === 'mint-stablecoin'
-                            ? 'text-secondary-600 border-b-2 border-secondary-600'
-                            : 'text-primary-600 dark:text-primary-400 hover:text-secondary-500 dark:hover:text-secondary-400'
-                            }`}
-                        onClick={() => setActiveTab('mint-stablecoin')}
-                    >
-                        Mint with Stablecoin
-                    </button>
-                    <button
-                        className={`px-4 py-2 font-medium text-sm ${activeTab === 'redeem'
-                            ? 'text-secondary-600 border-b-2 border-secondary-600'
-                            : 'text-primary-600 dark:text-primary-400 hover:text-secondary-500 dark:hover:text-secondary-400'
-                            }`}
-                        onClick={() => setActiveTab('redeem')}
-                    >
-                        Redeem Tokens
-                    </button>
+                        >
+                            Multi-Token Minting
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('redeem')}
+                            className={`py-2 px-4 text-sm font-medium ${activeTab === 'redeem'
+                                    ? 'border-b-2 border-secondary-500 text-secondary-600 dark:text-secondary-400'
+                                    : 'text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300'
+                                }`}
+                        >
+                            Redeem Tokens
+                        </button>
+                    </div>
                 </div>
 
-                {/* Content based on active tab */}
+                {/* Active Tab Content */}
                 {activeTab === 'mint-hbar' && (
                     <form onSubmit={handleMintStock} className="space-y-4 max-w-md mx-auto">
                         {/* Stock Selection */}
@@ -332,6 +354,85 @@ const StockMintRedeem: React.FC = () => {
 
                 {activeTab === 'mint-stablecoin' && (
                     <MintWithStablecoin />
+                )}
+
+                {activeTab === 'multi-token' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h3 className="text-lg font-medium text-primary-900 dark:text-white mb-4">
+                                Multi-Token Minting
+                            </h3>
+                            <p className="text-sm text-primary-600 dark:text-primary-400 mb-6">
+                                Use different tokens (HBAR, USDC, USDT) to mint stock tokens with automatic conversion.
+                                Gas fees are covered by the deployment account.
+                            </p>
+
+                            {selectedStock ? (
+                                <div className="p-4 bg-primary-50 dark:bg-primary-800/50 rounded-lg mb-4">
+                                    <div className="flex items-center">
+                                        <div className="h-10 w-10 bg-primary-200 dark:bg-primary-700 rounded-full flex items-center justify-center font-medium text-primary-800 dark:text-primary-200">
+                                            {selectedStock.shortName.substring(0, 2)}
+                                        </div>
+                                        <div className="ml-3">
+                                            <p className="text-primary-900 dark:text-white font-semibold">{selectedStock.shortName}</p>
+                                            <p className="text-xs text-primary-500 dark:text-primary-400">{selectedStock.longName}</p>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4 mt-4">
+                                        <div>
+                                            <p className="text-xs text-primary-500 dark:text-primary-400">Price in HBAR</p>
+                                            <p className="font-semibold text-primary-900 dark:text-white">{selectedStock.priceHbar.toFixed(6)} HBAR</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-primary-500 dark:text-primary-400">USD Equivalent</p>
+                                            <p className="font-semibold text-primary-900 dark:text-white">${(selectedStock.priceHbar * exchangeRate).toFixed(2)}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-4 bg-primary-50 dark:bg-primary-800/50 rounded-lg mb-4">
+                                    <p className="text-center text-primary-600 dark:text-primary-400">
+                                        Please select a stock from the dropdown
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="mb-4">
+                                <label htmlFor="stock-select" className="block text-sm font-medium text-primary-700 dark:text-primary-300 mb-1">
+                                    Select Stock
+                                </label>
+                                <select
+                                    id="stock-select"
+                                    value={selectedStock?.id || ''}
+                                    onChange={(e) => {
+                                        const stockId = e.target.value;
+                                        const stock = stocks.find(s => s.id === stockId);
+                                        setSelectedStock(stock || null);
+                                    }}
+                                    className="w-full rounded-md border border-primary-300 dark:border-primary-700 
+                                    bg-white dark:bg-primary-800 px-3 py-2 text-primary-900 dark:text-white 
+                                    shadow-sm focus:outline-none focus:ring-1 focus:ring-secondary-500"
+                                    disabled={isLoading || processing}
+                                >
+                                    <option value="">-- Select a stock --</option>
+                                    {stocks.map((stock) => (
+                                        <option key={stock.id} value={stock.id}>
+                                            {stock.shortName} - {stock.longName}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            {selectedStock && (
+                                <TokenMinter
+                                    contractId={selectedStock.id}
+                                    onSuccess={handleMintSuccess}
+                                />
+                            )}
+                        </div>
+                    </div>
                 )}
 
                 {activeTab === 'redeem' && (
