@@ -8,6 +8,7 @@ import {
 import { signTransaction } from '../utils/signatureUtils';
 import * as hederaService from '../services/hederaService';
 import * as walletService from '../services/walletService';
+import { useSession } from 'next-auth/react';
 
 type WalletContextType = {
   client: Client | null;
@@ -16,12 +17,9 @@ type WalletContextType = {
   smartWalletId: string | null;
   balance: string | null;
   isLoading: boolean;
+  isError: boolean;
   error: string | null;
-  connect: () => Promise<void>;
-  connectWallet: () => Promise<void>;
-  disconnectWallet: () => void;
   executeTransaction: (targetContract: string, functionName: string, params: any[], value?: number) => Promise<any>;
-  createSmartWallet: () => Promise<string>;
   executeBatchedTransactions: (transactions: BatchedTransaction[]) => Promise<any>;
   executeGaslessTransaction: (targetContract: string, functionName: string, params: any[], value?: number) => Promise<any>;
   guardians: string[];
@@ -39,6 +37,9 @@ type WalletContextType = {
   transferToken: (tokenId: string, recipientId: string, amount: number) => Promise<boolean>;
   getHbarExchangeRate: () => Promise<number>;
   signMessage: (message: string) => Promise<string>;
+  // Added for external control
+  setSmartWalletId: (id: string | null) => void;
+  setError: (errorMessage: string | null) => void;
 };
 
 const defaultContext: WalletContextType = {
@@ -48,12 +49,9 @@ const defaultContext: WalletContextType = {
   smartWalletId: null,
   balance: null,
   isLoading: false,
+  isError: false,
   error: null,
-  connect: async () => { },
-  connectWallet: async () => {},
-  disconnectWallet: () => {},
   executeTransaction: async () => ({}),
-  createSmartWallet: async () => "",
   executeBatchedTransactions: async () => ({}),
   executeGaslessTransaction: async () => ({}),
   guardians: [],
@@ -70,15 +68,13 @@ const defaultContext: WalletContextType = {
   transferToken: async () => false,
   getHbarExchangeRate: async () => 0,
   signMessage: async () => "",
+  setSmartWalletId: () => { },
+  setError: () => { },
 };
 
 const WalletContext = createContext<WalletContextType>(defaultContext);
 
 export const useWallet = () => useContext(WalletContext);
-
-interface WalletProviderProps {
-  children: ReactNode;
-}
 
 interface BatchedTransaction {
   targetContract: string;
@@ -87,7 +83,12 @@ interface BatchedTransaction {
   value: number;
 }
 
+interface WalletProviderProps {
+  children: ReactNode;
+}
+
 export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
+  const { data: session, status } = useSession();
   const [client, setClient] = useState<Client | null>(null);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
@@ -95,59 +96,73 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [balance, setBalance] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [isError, setIsError] = useState<boolean>(false);
   const [guardians, setGuardians] = useState<string[]>([]);
   const [recoveryInProgress, setRecoveryInProgress] = useState<boolean>(false);
   const [recoveryInitiator, setRecoveryInitiator] = useState<string | null>(null);
   const [proposedNewOwner, setProposedNewOwner] = useState<string | null>(null);
   const [privateKeyStr, setPrivateKeyStr] = useState<string | null>(null);
-  const [autoConnectAttempted, setAutoConnectAttempted] = useState<boolean>(false);
 
-  // Auto-connect on component mount without user interaction
+  // Initialize client when session changes
   useEffect(() => {
-    if (!autoConnectAttempted && !isConnected) {
-      const autoConnect = async () => {
-        try {
-          await connect();
-          setAutoConnectAttempted(true);
-        } catch (err) {
-          console.error("Auto-connect failed:", err);
-          setAutoConnectAttempted(true);
+    const initClient = async () => {
+      if (status !== 'authenticated' || !session?.user?.id) {
+        // Clear wallet state if not authenticated
+        setClient(null);
+        setAccountId(null);
+        setIsConnected(false);
+        return;
+      }
+
+      try {
+        // Clear any previous errors
+        setError(null);
+        setIsError(false);
+
+        console.log("Initializing Hedera client for user:", session.user.id);
+
+        // Initialize Hedera client
+        const client = hederaService.initializeClient();
+        setClient(client);
+
+        // Check if client has valid operator
+        if (!hederaService.verifyClientOperator(client)) {
+          throw new Error("Hedera client operator credentials are missing or invalid");
         }
-      };
 
-      autoConnect();
-    }
-  }, [autoConnectAttempted, isConnected]);
-
-  // Check for existing connection on component mount
-  useEffect(() => {
-    const savedAccountId = localStorage.getItem('tajiri-account-id');
-    const savedSmartWalletId = localStorage.getItem('tajiri-smart-wallet-id');
-    
-    if (savedAccountId) {
-      // Initialize client with saved account
-      const initClient = async () => {
-        try {
-          await connectWallet();
-          if (savedSmartWalletId) {
-            setSmartWalletId(savedSmartWalletId);
-          }
-        } catch (err) {
-          console.error("Failed to initialize client:", err);
-          setError("Failed to initialize Hedera client. Please try connecting your wallet again.");
+        // Check network connectivity
+        const isNetworkConnected = await hederaService.testNetworkConnectivity();
+        if (!isNetworkConnected) {
+          throw new Error("Unable to connect to Hedera network. Please check your internet connection.");
         }
-      };
 
-      initClient();
-    }
-  }, []);
+        // Set the user ID from session as the account ID
+        setAccountId(session.user.id);
+        setIsConnected(true);
 
-  // Update balance when account changes
+        // Try to load existing smart wallet ID from localStorage
+        const savedSmartWalletId = localStorage.getItem('tajiri-smart-wallet-id');
+        if (savedSmartWalletId) {
+          console.log("Found smart wallet ID in localStorage:", savedSmartWalletId);
+          setSmartWalletId(savedSmartWalletId);
+        }
+      } catch (err: any) {
+        console.error("Failed to initialize client:", err);
+        setError(`Failed to initialize Hedera client: ${err.message}`);
+        setIsError(true);
+        setIsConnected(false);
+      }
+    };
+
+    initClient();
+  }, [session, status]);
+
+  // Update balance when accountId or smartWalletId changes
   useEffect(() => {
-    if (client && accountId) {
+    if (client && (accountId || smartWalletId)) {
       fetchBalance();
     }
-  }, [client, accountId]);
+  }, [client, accountId, smartWalletId]);
 
   // Update guardians when wallet changes
   useEffect(() => {
@@ -158,53 +173,35 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   }, [smartWalletId]);
 
   const fetchBalance = async () => {
-    if (!client || !accountId) return;
+    if (!client) return;
     
     try {
-      const accountBalance = await hederaService.getAccountBalance(accountId);
-      setBalance(accountBalance);
+      let accountBalance;
+
+      if (smartWalletId) {
+        // If smart wallet exists, get its balance
+        accountBalance = await hederaService.getContractBalance(smartWalletId);
+      } else if (accountId) {
+        // Otherwise get the main account balance
+        accountBalance = await hederaService.getAccountBalance(accountId);
+      }
+
+      if (accountBalance) {
+        setBalance(accountBalance);
+      }
     } catch (err: any) {
-      setError(`Failed to fetch balance: ${err.message}`);
+      console.error(`Failed to fetch balance:`, err);
     }
   };
 
   const fetchGuardians = async () => {
     if (!client || !smartWalletId) return;
-    
-    setIsLoading(true);
 
     try {
-      // Query the smart wallet for guardians
-      const result = await hederaService.queryContract(
-        smartWalletId,
-        "getGuardians"
-      );
-
-      try {
-        // Parse guardian addresses from result
-        const guardianCount = result.getUint32(0);
-        const addresses: string[] = [];
-
-        for (let i = 0; i < guardianCount; i++) {
-          const address = result.getAddress(i + 1);
-          if (address) {
-            addresses.push(address);
-          }
-        }
-
-        setGuardians(addresses);
-      } catch (decodeErr) {
-        console.error('Failed to decode guardian addresses:', decodeErr);
-        setGuardians([]);
-      }
+      const guardianList = await walletService.getGuardians(smartWalletId);
+      setGuardians(guardianList);
     } catch (err: any) {
-      console.error('Failed to fetch guardians:', err);
-      setGuardians([]);
-
-      // Don't set global error for this non-critical feature
-      // setError(`Failed to fetch guardians: ${err.message}`);
-    } finally {
-      setIsLoading(false);
+      console.error(`Failed to fetch guardians:`, err);
     }
   };
 
@@ -212,202 +209,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     if (!client || !smartWalletId) return;
     
     try {
-      const result = await hederaService.queryContract(
-        smartWalletId,
-        "getRecoveryStatus"
-      );
-
-      try {
-        // Parse the response
-        const inProgress = result.getBool(0);
-        const initiator = inProgress ? result.getAddress(1) : null;
-        const newOwner = inProgress ? result.getAddress(2) : null;
-
-        setRecoveryInProgress(inProgress);
-        setRecoveryInitiator(initiator);
-        setProposedNewOwner(newOwner);
-      } catch (decodeErr) {
-        console.error('Failed to decode recovery status:', decodeErr);
-        setRecoveryInProgress(false);
-        setRecoveryInitiator(null);
-        setProposedNewOwner(null);
-      }
+      const recoveryStatus = await walletService.getRecoveryStatus(smartWalletId);
+      setRecoveryInProgress(recoveryStatus.inProgress);
+      setRecoveryInitiator(recoveryStatus.initiator);
+      setProposedNewOwner(recoveryStatus.proposedOwner);
     } catch (err: any) {
-      console.error('Failed to check recovery status:', err);
-
-      // Don't set global error for this non-critical feature
-      setRecoveryInProgress(false);
-      setRecoveryInitiator(null);
-      setProposedNewOwner(null);
-    }
-  };
-
-  // New silent auto-connect method
-  const connect = async () => {
-    try {
-      // For this implementation, we're using local environment variables
-      const myAccountId = hederaService.getOperatorAccountId();
-      const myPrivateKey = hederaService.getOperatorPrivateKey();
-
-      if (!myAccountId || !myPrivateKey) {
-        console.log('Account credentials not found in environment variables');
-        return;
-      }
-
-      // Test network connectivity before proceeding
-      const isNetworkAvailable = await hederaService.testNetworkConnectivity();
-      if (!isNetworkAvailable) {
-        console.log('Hedera network appears to be unavailable or congested. Will retry later.');
-
-        // Set a timer to retry in 5 seconds
-        setTimeout(() => {
-          if (!isConnected) {
-            connect();
-          }
-        }, 5000);
-
-        return;
-      }
-
-      // Store private key in memory
-      setPrivateKeyStr(myPrivateKey);
-
-      // Initialize client
-      const newClient = hederaService.getClient();
-      setClient(newClient);
-      setAccountId(myAccountId);
-      setIsConnected(true);
-
-      // Store account ID in local storage
-      localStorage.setItem('tajiri-account-id', myAccountId);
-
-      // Check for existing smart wallet
-      await checkExistingSmartWallet(myAccountId);
-
-    } catch (err: any) {
-      console.error("Silent connect failed:", err);
-      // Don't set errors for silent connection
-    }
-  };
-
-  const connectWallet = async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // For this implementation, we're using local environment variables
-      const myAccountId = hederaService.getOperatorAccountId();
-      const myPrivateKey = hederaService.getOperatorPrivateKey();
-      
-      if (!myAccountId || !myPrivateKey) {
-        throw new Error('Account credentials not found in environment variables');
-      }
-      
-      // Test network connectivity before proceeding
-      const isNetworkAvailable = await hederaService.testNetworkConnectivity();
-      if (!isNetworkAvailable) {
-        throw new Error('Hedera network appears to be unavailable or congested. Please try again later.');
-      }
-
-      // Store private key in memory
-      setPrivateKeyStr(myPrivateKey);
-
-      // Initialize client
-      const newClient = hederaService.getClient();
-      setClient(newClient);
-      setAccountId(myAccountId);
-      setIsConnected(true);
-
-      // Store account ID in local storage
-      localStorage.setItem('tajiri-account-id', myAccountId);
-
-      // Check for existing smart wallet
-      await checkExistingSmartWallet(myAccountId);
-
-    } catch (err: any) {
-      setError(`Wallet connection failed: ${err.message}`);
-      console.error("Wallet connection failed:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Helper to check for existing smart wallet
-  const checkExistingSmartWallet = async (account: string) => {
-    try {
-      const walletId = await walletService.findSmartWalletForOwner(account);
-
-      if (walletId) {
-        setSmartWalletId(walletId);
-        localStorage.setItem('tajiri-smart-wallet-id', walletId);
-      }
-    } catch (err) {
-      console.error("Failed to check for existing smart wallet:", err);
-    // Don't set error on this non-critical operation
-    }
-  };
-
-  const disconnectWallet = () => {
-    setClient(null);
-    setAccountId(null);
-    setIsConnected(false);
-    setSmartWalletId(null);
-    setBalance(null);
-    setPrivateKeyStr(null);
-    localStorage.removeItem('tajiri-account-id');
-    localStorage.removeItem('tajiri-smart-wallet-id');
-    hederaService.resetClient();
-  };
-
-  const createSmartWallet = async (): Promise<string> => {
-    if (!client || !accountId) {
-      throw new Error('No wallet connected');
-    }
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      if (!accountId) {
-        throw new Error('Account ID is required');
-      }
-
-      // First check if wallet already exists
-      const existingWallet = await walletService.findSmartWalletForOwner(accountId);
-
-      if (existingWallet) {
-        console.log("Smart wallet already exists, using existing wallet:", existingWallet);
-        setSmartWalletId(existingWallet);
-        localStorage.setItem('tajiri-smart-wallet-id', existingWallet);
-        return existingWallet;
-      }
-
-      // If no existing wallet, try to create a new one
-      try {
-        const newSmartWalletId = await walletService.createSmartWallet(accountId);
-        setSmartWalletId(newSmartWalletId);
-        localStorage.setItem('tajiri-smart-wallet-id', newSmartWalletId);
-        return newSmartWalletId;
-      } catch (createErr: any) {
-        // If creation fails, try one more time to find existing wallet
-        // This handles race conditions where wallet was created in another tab/session
-        if (createErr.message && createErr.message.includes('CONTRACT_REVERT_EXECUTED')) {
-          const retryExistingWallet = await walletService.findSmartWalletForOwner(accountId);
-          if (retryExistingWallet) {
-            console.log("Found existing wallet after creation attempt:", retryExistingWallet);
-            setSmartWalletId(retryExistingWallet);
-            localStorage.setItem('tajiri-smart-wallet-id', retryExistingWallet);
-            return retryExistingWallet;
-          }
-        }
-        throw createErr;
-      }
-    } catch (err: any) {
-      console.error('Smart wallet creation error:', err);
-      setError(`Failed to create smart wallet: ${err.message}`);
-      throw err;
-    } finally {
-      setIsLoading(false);
+      console.error(`Failed to check recovery status:`, err);
     }
   };
 
@@ -423,6 +230,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     
     setIsLoading(true);
     setError(null);
+    setIsError(false);
     
     try {
       const receipt = await walletService.executeTransaction(
@@ -439,6 +247,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       return receipt;
     } catch (err: any) {
       setError(`Transaction failed: ${err.message}`);
+      setIsError(true);
       throw err;
     } finally {
       setIsLoading(false);
@@ -454,6 +263,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     
     setIsLoading(true);
     setError(null);
+    setIsError(false);
     
     try {
       const receipt = await walletService.executeBatchedTransactions(
@@ -468,23 +278,10 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     } catch (err: any) {
       console.error('Batched transaction error:', err);
       setError(`Batched transaction failed: ${err.message}`);
+      setIsError(true);
       throw err;
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const signMessage = async (message: string): Promise<string> => {
-    if (!privateKeyStr) {
-      throw new Error('No private key available');
-    }
-
-    try {
-      return signTransaction({ message }, privateKeyStr);
-    } catch (err: any) {
-      console.error('Error signing message:', err);
-      setError(`Failed to sign message: ${err.message}`);
-      throw err;
     }
   };
 
@@ -494,18 +291,18 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     params: any[], 
     value: number = 0
   ) => {
-    if (!client || !accountId || !privateKeyStr) {
-      throw new Error('No wallet connected or missing credentials');
+    if (!client || !smartWalletId) {
+      throw new Error('No wallet connected or smart wallet not created');
     }
     
     setIsLoading(true);
     setError(null);
+    setIsError(false);
     
     try {
-      const result = await walletService.executeGaslessTransaction(
-        accountId,
+      // For gas-less transactions, we use a relayer service
+      const receipt = await walletService.executeGaslessTransaction(
         smartWalletId,
-        privateKeyStr,
         targetContract,
         functionName,
         params,
@@ -515,10 +312,11 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       // Update balance after transaction
       await fetchBalance();
       
-      return result;
+      return receipt;
     } catch (err: any) {
-      console.error('Gasless transaction error:', err);
-      setError(`Gasless transaction failed: ${err.message}`);
+      console.error('Gas-less transaction error:', err);
+      setError(`Gas-less transaction failed: ${err.message}`);
+      setIsError(true);
       throw err;
     } finally {
       setIsLoading(false);
@@ -532,16 +330,19 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     
     setIsLoading(true);
     setError(null);
+    setIsError(false);
     
     try {
       await walletService.addGuardian(smartWalletId, guardianAddress);
       
-      // Update the guardians list
+      // Refresh guardians list
       await fetchGuardians();
       
       return true;
     } catch (err: any) {
+      console.error('Add guardian error:', err);
       setError(`Failed to add guardian: ${err.message}`);
+      setIsError(true);
       return false;
     } finally {
       setIsLoading(false);
@@ -555,50 +356,45 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     
     setIsLoading(true);
     setError(null);
+    setIsError(false);
     
     try {
       await walletService.removeGuardian(smartWalletId, guardianAddress);
       
-      // Update the guardians list
+      // Refresh guardians list
       await fetchGuardians();
       
       return true;
     } catch (err: any) {
+      console.error('Remove guardian error:', err);
       setError(`Failed to remove guardian: ${err.message}`);
+      setIsError(true);
       return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // The remaining functions for recovery and token interactions would also be refactored
-  // in a similar way. For brevity, I'll just include a few examples:
-
   const initiateRecovery = async (newOwnerAddress: string): Promise<boolean> => {
-    if (!client || !accountId) {
-      throw new Error('No wallet connected');
+    if (!client || !smartWalletId) {
+      throw new Error('No wallet connected or smart wallet not created');
     }
     
     setIsLoading(true);
     setError(null);
+    setIsError(false);
     
     try {
-      // Get wallet to recover
-      const walletToRecover = prompt("Enter the smart wallet ID to recover:");
-      if (!walletToRecover) {
-        throw new Error('No wallet ID provided for recovery');
-      }
-      
-      const params = new ContractFunctionParameters()
-        .addAddress(newOwnerAddress);
-      
-      await hederaService.executeContract(walletToRecover, "initiateRecovery", params);
+      await walletService.initiateRecovery(smartWalletId, newOwnerAddress);
 
-      alert(`Recovery process initiated for wallet ${walletToRecover}`);
+      // Refresh recovery status
+      await checkRecoveryStatus();
       
       return true;
     } catch (err: any) {
+      console.error('Initiate recovery error:', err);
       setError(`Failed to initiate recovery: ${err.message}`);
+      setIsError(true);
       return false;
     } finally {
       setIsLoading(false);
@@ -606,24 +402,27 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   };
 
   const approveRecovery = async (walletToRecover: string, newOwnerAddress: string): Promise<boolean> => {
-    if (!client || !accountId) {
+    if (!client) {
       throw new Error('No wallet connected');
     }
     
     setIsLoading(true);
     setError(null);
+    setIsError(false);
     
     try {
-      const params = new ContractFunctionParameters()
-        .addAddress(newOwnerAddress);
-      
-      await hederaService.executeContract(walletToRecover, "approveRecovery", params);
+      await walletService.approveRecovery(walletToRecover, newOwnerAddress);
 
-      alert(`Recovery approved for wallet ${walletToRecover}`);
+      // If approving our own wallet recovery, refresh status
+      if (walletToRecover === smartWalletId) {
+        await checkRecoveryStatus();
+      }
       
       return true;
     } catch (err: any) {
+      console.error('Approve recovery error:', err);
       setError(`Failed to approve recovery: ${err.message}`);
+      setIsError(true);
       return false;
     } finally {
       setIsLoading(false);
@@ -637,45 +436,37 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     
     setIsLoading(true);
     setError(null);
+    setIsError(false);
     
     try {
-      await hederaService.executeContract(smartWalletId, "cancelRecovery");
+      await walletService.cancelRecovery(smartWalletId);
       
-      // Update recovery status
-      setRecoveryInProgress(false);
-      setRecoveryInitiator(null);
-      setProposedNewOwner(null);
+      // Refresh recovery status
+      await checkRecoveryStatus();
       
       return true;
     } catch (err: any) {
+      console.error('Cancel recovery error:', err);
       setError(`Failed to cancel recovery: ${err.message}`);
+      setIsError(true);
       return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Token services would similarly be refactored to use the hederaService
-
   const getTokenBalance = async (tokenId: string): Promise<string> => {
     if (!client || !smartWalletId) {
       throw new Error('No wallet connected or smart wallet not created');
     }
 
-    setIsLoading(true);
-    setError(null);
-
     try {
-      const params = new ContractFunctionParameters().addAddress(tokenId);
-      const result = await hederaService.queryContract(smartWalletId, "getTokenBalance", params);
-      const balance = result.getUint256(0);
-
-      return balance.toString();
+      return await walletService.getTokenBalance(smartWalletId, tokenId);
     } catch (err: any) {
+      console.error('Get token balance error:', err);
       setError(`Failed to get token balance: ${err.message}`);
-      return '0';
-    } finally {
-      setIsLoading(false);
+      setIsError(true);
+      return "0";
     }
   };
 
@@ -686,14 +477,15 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
     setIsLoading(true);
     setError(null);
+    setIsError(false);
 
     try {
-      const params = new ContractFunctionParameters().addAddress(tokenId);
-      await hederaService.executeContract(smartWalletId, "associateToken", params);
-
+      await walletService.associateToken(smartWalletId, tokenId);
       return true;
     } catch (err: any) {
+      console.error('Associate token error:', err);
       setError(`Failed to associate token: ${err.message}`);
+      setIsError(true);
       return false;
     } finally {
       setIsLoading(false);
@@ -707,18 +499,15 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
     setIsLoading(true);
     setError(null);
+    setIsError(false);
 
     try {
-      const params = new ContractFunctionParameters()
-        .addAddress(tokenId)
-        .addAddress(recipientId)
-        .addUint256(amount);
-
-      await hederaService.executeContract(smartWalletId, "transferToken", params);
-
+      await walletService.transferToken(smartWalletId, tokenId, recipientId, amount);
       return true;
     } catch (err: any) {
+      console.error('Transfer token error:', err);
       setError(`Failed to transfer token: ${err.message}`);
+      setIsError(true);
       return false;
     } finally {
       setIsLoading(false);
@@ -726,19 +515,35 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   };
 
   const getHbarExchangeRate = async (): Promise<number> => {
-    if (!client || !smartWalletId) {
-      throw new Error('No wallet connected or smart wallet not created');
+    try {
+      return await walletService.getHbarExchangeRate();
+    } catch (err: any) {
+      console.error('Get HBAR exchange rate error:', err);
+      setError(`Failed to get HBAR exchange rate: ${err.message}`);
+      setIsError(true);
+      return 0;
+    }
+  };
+
+  const signMessage = async (message: string): Promise<string> => {
+    if (!privateKeyStr) {
+      throw new Error('No private key available');
     }
 
     try {
-      const result = await hederaService.queryContract(smartWalletId, "getHbarExchangeRate");
-      const rate = result.getInt64(0);
-
-      return Number(rate) / 100000000; // Convert tiny USD cents to USD
+      return signTransaction({ message }, privateKeyStr);
     } catch (err: any) {
-      console.error(`Failed to get HBAR exchange rate: ${err.message}`);
-      return 0;
+      console.error('Error signing message:', err);
+      setError(`Failed to sign message: ${err.message}`);
+      setIsError(true);
+      throw err;
     }
+  };
+
+  // Expose the setError method for external components
+  const handleSetError = (errorMessage: string | null) => {
+    setError(errorMessage);
+    setIsError(!!errorMessage);
   };
 
   const value = {
@@ -748,12 +553,9 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     smartWalletId,
     balance,
     isLoading,
+    isError,
     error,
-    connect,
-    connectWallet,
-    disconnectWallet,
     executeTransaction,
-    createSmartWallet,
     executeBatchedTransactions,
     executeGaslessTransaction,
     guardians,
@@ -770,6 +572,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     transferToken,
     getHbarExchangeRate,
     signMessage,
+    setSmartWalletId,
+    setError: handleSetError,
   };
 
   return (
