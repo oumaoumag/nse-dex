@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import GoogleLoginButton from '@/components/GoogleLoginButton';
+import { WalletStatusIndicator } from './WalletStatusIndicator';
 
 export default function Header() {
     const { data: session, status } = useSession();
@@ -102,6 +103,7 @@ export default function Header() {
                             </Link>
                         )}
                         <div className="h-5 w-px bg-decode-green/30 mx-2"></div>
+                        {isAuthenticated && <WalletStatusIndicator className="mr-3" />}
                         <GoogleLoginButton />
                     </nav>
 
@@ -195,6 +197,7 @@ export default function Header() {
                                 STOCKS
                             </Link>
                         )}
+                        {isAuthenticated && <WalletStatusIndicator className="my-2" />}
                         <div className="my-4">
                             <GoogleLoginButton />
                         </div>
