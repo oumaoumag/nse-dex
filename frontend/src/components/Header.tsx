@@ -32,6 +32,12 @@ export default function Header() {
         return currentPath === path;
     };
 
+    // Check if marketplace or market paths are active for the Finance Hub link
+    const isFinanceHubActive = () => {
+        if (!mounted) return false;
+        return currentPath === '/marketplace' || currentPath.startsWith('/market');
+    };
+
     return (
         <>
             <header className="sticky top-0 z-50 w-full border-b border-decode-green/20 bg-decode-black/90 backdrop-blur-lg">
@@ -47,7 +53,7 @@ export default function Header() {
                                     e.currentTarget.style.display = 'none';
                                 }}
                             />
-                            <span className="text-2xl font-bold">Tajiri</span>
+                            <span className="text-2xl font-bold decode-gradient bg-clip-text text-transparent">Tajiri</span>
                         </Link>
                     </div>
                     <nav className="hidden md:flex items-center gap-6">
@@ -62,12 +68,12 @@ export default function Header() {
                         </Link>
                         <Link
                             href="/marketplace"
-                            className={`text-sm font-medium ${isActive('/marketplace')
+                            className={`text-sm font-medium ${isFinanceHubActive()
                                 ? 'text-decode-green'
                                 : 'text-decode-white hover:text-decode-green'
                                 }`}
                         >
-                            MARKETPLACE
+                            FINANCE HUB
                         </Link>
                         <Link
                             href="/trading"
@@ -153,13 +159,13 @@ export default function Header() {
                         </Link>
                         <Link
                             href="/marketplace"
-                            className={`text-lg font-medium ${isActive('/marketplace')
+                            className={`text-lg font-medium ${isFinanceHubActive()
                                 ? 'text-decode-green'
                                 : 'text-decode-white hover:text-decode-green'
                                 }`}
                             onClick={() => setIsMobileMenuOpen(false)}
                         >
-                            MARKETPLACE
+                            FINANCE HUB
                         </Link>
                         <Link
                             href="/trading"
