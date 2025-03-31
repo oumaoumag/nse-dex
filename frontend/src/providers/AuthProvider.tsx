@@ -1,16 +1,17 @@
 'use client';
 
-import { SessionProvider } from "next-auth/react";
-import { ReactNode } from "react";
+import { SessionProvider } from 'next-auth/react';
+import { SmartWalletManager } from '@/components/SmartWalletManager';
 
-type AuthProviderProps = {
-  children: ReactNode;
-};
-
-/**
- * AuthProvider component that wraps the application with NextAuth SessionProvider
- * This makes authentication state available throughout the app
- */
-export function AuthProvider({ children }: AuthProviderProps) {
-  return <SessionProvider>{children}</SessionProvider>;
+export default function AuthProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <SessionProvider>
+      <SmartWalletManager />
+      {children}
+    </SessionProvider>
+  );
 }
