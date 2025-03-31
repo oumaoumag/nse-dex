@@ -3,18 +3,21 @@
 import React, { useState, useEffect } from 'react';
 import StockMarketplace from '@/components/StockMarketplace';
 import MarketDataDisplay from '@/components/MarketDataDisplay';
+import StockDataDisplay from '@/components/StockDataDisplay';
 import { StockProvider } from '@/contexts/StockContext';
 import { useSearchParams } from 'next/navigation';
 
 export default function MarketplacePage() {
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'trading' | 'market'>('trading');
+  const [activeTab, setActiveTab] = useState<'trading' | 'market' | 'stocks'>('trading');
 
   // Set initial tab based on URL parameter
   useEffect(() => {
     const tabParam = searchParams.get('tab');
     if (tabParam === 'market') {
       setActiveTab('market');
+    } else if (tabParam === 'stocks') {
+      setActiveTab('stocks');
     }
   }, [searchParams]);
 
@@ -76,14 +79,25 @@ export default function MarketplacePage() {
               >
                 MARKET DATA & RESEARCH
               </button>
+              <button
+                onClick={() => setActiveTab('stocks')}
+                className={`py-3 px-6 font-medium text-sm ${activeTab === 'stocks'
+                  ? 'text-decode-green border-b-2 border-decode-green'
+                  : 'text-gray-400 hover:text-gray-200'
+                  }`}
+              >
+                STOCK SHOWCASE
+              </button>
             </div>
 
             {/* Tab Content */}
             <div className="py-4">
               {activeTab === 'trading' ? (
                 <StockMarketplace />
-              ) : (
+              ) : activeTab === 'market' ? (
                 <MarketDataDisplay />
+                ) : (
+                  <StockDataDisplay />
               )}
             </div>
           </div>
