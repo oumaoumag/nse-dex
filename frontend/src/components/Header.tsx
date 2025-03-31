@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useWallet } from '@/contexts/WalletContext';
-import WalletConnection from '@/components/WalletConnection';
+import { useSession } from 'next-auth/react';
 import GoogleLoginButton from '@/components/GoogleLoginButton';
 
 export default function Header() {
-    const { isConnected } = useWallet();
+    const { data: session, status } = useSession();
+    const isAuthenticated = status === 'authenticated';
 
     const [mounted, setMounted] = useState(false);
     const [currentPath, setCurrentPath] = useState('/');
@@ -22,9 +22,6 @@ export default function Header() {
             setCurrentPath(window.location.pathname);
         }
     }, []);
-
-    // Only show main header if not connected (otherwise WalletLayout handles navigation)
-    if (isConnected) return null;
 
     // Safe isActive function that works without router
     const isActive = (path: string) => {
@@ -93,7 +90,7 @@ export default function Header() {
                         >
                             PORTFOLIO
                         </Link>
-                        {isConnected && (
+                        {isAuthenticated && (
                             <Link
                                 href="/stocks"
                                 className={`text-sm font-medium ${isActive('/stocks')
@@ -105,7 +102,6 @@ export default function Header() {
                             </Link>
                         )}
                         <div className="h-5 w-px bg-decode-green/30 mx-2"></div>
-                        <WalletConnection compact={true} />
                         <GoogleLoginButton />
                     </nav>
 
@@ -187,7 +183,7 @@ export default function Header() {
                         >
                             PORTFOLIO
                         </Link>
-                        {isConnected && (
+                        {isAuthenticated && (
                             <Link
                                 href="/stocks"
                                 className={`text-lg font-medium ${isActive('/stocks')
@@ -199,9 +195,6 @@ export default function Header() {
                                 STOCKS
                             </Link>
                         )}
-                        <div className="my-4">
-                            <WalletConnection compact={true} />
-                        </div>
                         <div className="my-4">
                             <GoogleLoginButton />
                         </div>
