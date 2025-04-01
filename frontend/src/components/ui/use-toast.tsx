@@ -15,6 +15,8 @@ type ToasterToast = ToastProps & {
     title?: string;
     description?: string;
     action?: ToastActionElement;
+    open?: boolean;
+    onClose?: () => void;
 };
 
 const actionTypes = {

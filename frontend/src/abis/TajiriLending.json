@@ -1,0 +1,337 @@
+{
+    "contractName": "TajiriLending",
+    "abi": [
+        {
+            "inputs": [
+                {
+                    "name": "stablecoinAddress",
+                    "type": "address"
+                },
+                {
+                    "name": "loanAmount",
+                    "type": "uint256"
+                },
+                {
+                    "name": "interestRate",
+                    "type": "uint256"
+                },
+                {
+                    "name": "duration",
+                    "type": "uint256"
+                },
+                {
+                    "name": "collateralTokenAddress",
+                    "type": "address"
+                },
+                {
+                    "name": "collateralAmount",
+                    "type": "uint256"
+                }
+            ],
+            "name": "createLenderOffer",
+            "outputs": [
+                {
+                    "name": "offerId",
+                    "type": "uint256"
+                }
+            ],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "stablecoinAddress",
+                    "type": "address"
+                },
+                {
+                    "name": "loanAmount",
+                    "type": "uint256"
+                },
+                {
+                    "name": "interestRate",
+                    "type": "uint256"
+                },
+                {
+                    "name": "duration",
+                    "type": "uint256"
+                },
+                {
+                    "name": "collateralTokenAddress",
+                    "type": "address"
+                },
+                {
+                    "name": "collateralAmount",
+                    "type": "uint256"
+                }
+            ],
+            "name": "createBorrowerRequest",
+            "outputs": [
+                {
+                    "name": "requestId",
+                    "type": "uint256"
+                }
+            ],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "offerId",
+                    "type": "uint256"
+                }
+            ],
+            "name": "acceptLenderOffer",
+            "outputs": [
+                {
+                    "name": "success",
+                    "type": "bool"
+                }
+            ],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "requestId",
+                    "type": "uint256"
+                }
+            ],
+            "name": "acceptBorrowerRequest",
+            "outputs": [
+                {
+                    "name": "success",
+                    "type": "bool"
+                }
+            ],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "loanId",
+                    "type": "uint256"
+                }
+            ],
+            "name": "repayLoan",
+            "outputs": [
+                {
+                    "name": "success",
+                    "type": "bool"
+                }
+            ],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "loanId",
+                    "type": "uint256"
+                }
+            ],
+            "name": "claimCollateral",
+            "outputs": [
+                {
+                    "name": "success",
+                    "type": "bool"
+                }
+            ],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "loanId",
+                    "type": "uint256"
+                }
+            ],
+            "name": "cancelLoan",
+            "outputs": [
+                {
+                    "name": "success",
+                    "type": "bool"
+                }
+            ],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "loanId",
+                    "type": "uint256"
+                }
+            ],
+            "name": "getLoanDetails",
+            "outputs": [
+                {
+                    "name": "id",
+                    "type": "uint256"
+                },
+                {
+                    "name": "creator",
+                    "type": "address"
+                },
+                {
+                    "name": "offerType",
+                    "type": "uint8"
+                },
+                {
+                    "name": "stablecoinAddress",
+                    "type": "address"
+                },
+                {
+                    "name": "loanAmount",
+                    "type": "uint256"
+                },
+                {
+                    "name": "interestRate",
+                    "type": "uint256"
+                },
+                {
+                    "name": "duration",
+                    "type": "uint256"
+                },
+                {
+                    "name": "collateralTokenAddress",
+                    "type": "address"
+                },
+                {
+                    "name": "collateralAmount",
+                    "type": "uint256"
+                },
+                {
+                    "name": "createdAt",
+                    "type": "uint256"
+                },
+                {
+                    "name": "status",
+                    "type": "uint8"
+                },
+                {
+                    "name": "borrower",
+                    "type": "address"
+                },
+                {
+                    "name": "lender",
+                    "type": "address"
+                },
+                {
+                    "name": "startTime",
+                    "type": "uint256"
+                },
+                {
+                    "name": "endTime",
+                    "type": "uint256"
+                },
+                {
+                    "name": "repaidAmount",
+                    "type": "uint256"
+                },
+                {
+                    "name": "collateralLocked",
+                    "type": "bool"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "userAddress",
+                    "type": "address"
+                }
+            ],
+            "name": "getUserActiveLoans",
+            "outputs": [
+                {
+                    "name": "loanIds",
+                    "type": "uint256[]"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "userAddress",
+                    "type": "address"
+                }
+            ],
+            "name": "getUserLenderOffers",
+            "outputs": [
+                {
+                    "name": "offerIds",
+                    "type": "uint256[]"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "userAddress",
+                    "type": "address"
+                }
+            ],
+            "name": "getUserBorrowerRequests",
+            "outputs": [
+                {
+                    "name": "requestIds",
+                    "type": "uint256[]"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [],
+            "name": "getAllActiveOffers",
+            "outputs": [
+                {
+                    "name": "offerIds",
+                    "type": "uint256[]"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [],
+            "name": "getAllActiveRequests",
+            "outputs": [
+                {
+                    "name": "requestIds",
+                    "type": "uint256[]"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "loanId",
+                    "type": "uint256"
+                }
+            ],
+            "name": "calculateTotalDue",
+            "outputs": [
+                {
+                    "name": "totalAmount",
+                    "type": "uint256"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        }
+    ]
+}

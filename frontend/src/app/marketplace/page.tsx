@@ -1,19 +1,20 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import StockMarketplace from '@/components/StockMarketplace';
 import MarketDataDisplay from '@/components/MarketDataDisplay';
 import StockDataDisplay from '@/components/StockDataDisplay';
 import { StockProvider } from '@/contexts/StockContext';
 import { useSearchParams } from 'next/navigation';
 
-export default function MarketplacePage() {
+// Create a client component that uses useSearchParams
+function MarketplaceContent() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'trading' | 'market' | 'stocks'>('trading');
 
   // Set initial tab based on URL parameter
   useEffect(() => {
-    const tabParam = searchParams.get('tab');
+    const tabParam = searchParams?.get('tab');
     if (tabParam === 'market') {
       setActiveTab('market');
     } else if (tabParam === 'stocks') {
@@ -104,5 +105,21 @@ export default function MarketplacePage() {
         </section>
       </div>
     </StockProvider>
+  );
+}
+
+// Export the main marketplace page with Suspense
+export default function MarketplacePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-decode-black">
+        <div className="text-decode-green text-center">
+          <div className="animate-spin h-10 w-10 border-4 border-decode-green border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p>Loading marketplace...</p>
+        </div>
+      </div>
+    }>
+      <MarketplaceContent />
+    </Suspense>
   );
 }

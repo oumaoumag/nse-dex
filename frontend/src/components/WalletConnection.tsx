@@ -11,10 +11,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 export default function WalletConnection() {
   const { 
     isConnected, 
-    address, 
-    balance, 
+    accountId,
     smartWalletId,
-    isSmartWallet
+    balance
   } = useWallet();
 
   const { data: session, status } = useSession();
@@ -29,8 +28,10 @@ export default function WalletConnection() {
   };
 
   // Format balance with commas and truncate to max 6 decimal places
-  const formatBalance = (bal: number) => {
-    return bal.toLocaleString(undefined, {
+  const formatBalance = (bal: string | null) => {
+    if (bal === null) return '0';
+    const numBal = parseFloat(bal);
+    return numBal.toLocaleString(undefined, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 6
     });
@@ -60,23 +61,23 @@ export default function WalletConnection() {
             <TooltipProvider>
               <Card className="bg-decode-black border border-decode-green/20 p-2 rounded-lg flex items-center gap-3 w-full lg:w-auto">
                 <Badge variant="secondary" className="bg-decode-green/20 text-decode-green text-xs px-2 py-0.5">
-                  {isSmartWallet ? 'Smart Wallet' : 'Wallet'}
+                  {smartWalletId ? 'Smart Wallet' : 'Wallet'}
                 </Badge>
 
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="cursor-pointer text-sm text-gray-300">
-                      {truncateAddress(address)}
+                      {truncateAddress(smartWalletId || accountId || '')}
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="text-xs">{address}</p>
+                    <p className="text-xs">{smartWalletId || accountId}</p>
                   </TooltipContent>
                 </Tooltip>
 
                 <div className="border-l border-decode-green/20 pl-3 text-sm">
                   <span className="text-gray-400">Balance:</span> <span className="text-decode-white font-medium">{formatBalance(balance)} HBAR</span>
-            </div>
+                </div>
 
                 <div className="ml-auto">
                   <Button
@@ -84,7 +85,7 @@ export default function WalletConnection() {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 rounded-md text-gray-400 hover:text-white hover:bg-decode-red/20"
-              >
+                  >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                       <polyline points="16 17 21 12 16 7"></polyline>

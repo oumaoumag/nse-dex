@@ -11,10 +11,11 @@ export interface ArticleMetadata {
     category: string;
     image: string;
     slug: string;
+    content?: string;
 }
 
 // Path to the articles directory
-const articlesDirectory = path.join(process.cwd(), 'public/articles');
+const articlesDirectory = path.join(process.cwd(), 'articles');
 
 /**
  * Get all article files
@@ -61,28 +62,32 @@ export function getAllArticles(): ArticleMetadata[] {
 /**
  * Get article content and metadata by slug
  */
-export function getArticleBySlug(slug: string, fields: string[] = []): {
+export function getArticleBySlug(slug: string, fields: Array<keyof ArticleMetadata> = []): {
     data: Partial<ArticleMetadata>;
     content: string
 } {
-    const fullPath = path.join(articlesDirectory, `${slug}.md`);
-
     try {
-        const fileContents = fs.readFileSync(fullPath, 'utf8');
+        const articles = getArticleFiles();
+        const articlePath = path.join(articlesDirectory, `${slug}.md`);
+
+        const fileContents = fs.readFileSync(articlePath, 'utf8');
         const { data, content } = matter(fileContents);
+
+        // Validate data is an object
+        if (typeof data !== 'object' || data === null) {
+            throw new Error(`Invalid frontmatter in article: ${slug}`);
+        }
 
         const items: Partial<ArticleMetadata> = {};
 
         // Only include the requested fields
         fields.forEach((field) => {
             if (field === 'slug') {
-                items[field] = slug;
-            }
-            if (field === 'content') {
-                items[field] = content;
-            }
-            if (data[field]) {
-                items[field] = data[field];
+                items['slug'] = slug;
+            } else if (field === 'content') {
+                items['content'] = content;
+            } else if (field in data) {
+                items[field] = data[field] as any;
             }
         });
 

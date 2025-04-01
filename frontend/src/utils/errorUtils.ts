@@ -119,11 +119,26 @@ export function validateWallet(
 /**
  * Validates a Hedera contract ID
  */
-export function validateContractId(contractId: string | null): boolean {
-    if (!contractId) return false;
+export function validateContractId(
+    contractId: string | null,
+    description?: string,
+    setError?: (error: string | null) => void
+): boolean {
+    if (!contractId) {
+        if (description && setError) {
+            setError(`Invalid or missing contract ID for ${description}`);
+        }
+        return false;
+    }
 
     const contractIdRegex = /^0\.0\.\d+$/;
-    return contractIdRegex.test(contractId);
+    const isValid = contractIdRegex.test(contractId);
+
+    if (!isValid && description && setError) {
+        setError(`Invalid contract ID format for ${description}`);
+    }
+
+    return isValid;
 }
 
 /**
@@ -134,8 +149,7 @@ export function validateContractDependencies(
     setError: (error: string | null) => void
 ): boolean {
     for (const [contractId, description] of Object.entries(dependencies)) {
-        if (!validateContractId(contractId)) {
-            setError(`Invalid or missing contract ID for ${description}`);
+        if (!validateContractId(contractId, description, setError)) {
             return false;
         }
     }

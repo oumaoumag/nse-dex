@@ -75,7 +75,7 @@ export const SmartWalletManager: React.FC = () => {
                 }
 
                 console.log("Looking for existing smart wallet for user:", session.user.id);
-                const foundWalletId = await walletService.findSmartWalletForOwner(session.user.id);
+                const foundWalletId = await walletService.findSmartWalletForOwner(session.user.id || '');
 
                 if (foundWalletId) {
                     // If found, store it and update the context
@@ -96,7 +96,7 @@ export const SmartWalletManager: React.FC = () => {
                     }
 
                     try {
-                        const newWalletId = await walletService.createSmartWallet(session.user.id);
+                        const newWalletId = await walletService.createSmartWallet(session.user.id || '');
                         console.log("Created new smart wallet:", newWalletId);
                         localStorage.setItem('tajiri-smart-wallet-id', newWalletId);
                         setSmartWalletId(newWalletId);

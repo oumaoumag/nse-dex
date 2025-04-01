@@ -253,11 +253,11 @@ const MyLoansTab: React.FC = () => {
                                         <>
                                             <div className="flex justify-between">
                                                 <span className="text-white/60">Start Date:</span>
-                                                <span className="text-white">{new Date(loan.startDate).toLocaleDateString()}</span>
+                                                <span className="text-white">{loan.startDate ? new Date(loan.startDate).toLocaleDateString() : 'N/A'}</span>
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-white/60">End Date:</span>
-                                                <span className="text-white">{new Date(loan.endDate).toLocaleDateString()}</span>
+                                                <span className="text-white">{loan.endDate ? new Date(loan.endDate).toLocaleDateString() : 'N/A'}</span>
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-white/60">Repaid So Far:</span>
@@ -274,7 +274,7 @@ const MyLoansTab: React.FC = () => {
                                         <>
                                             <div className="flex justify-between">
                                                 <span className="text-white/60">Created:</span>
-                                                <span className="text-white">{new Date(loan.createdAt).toLocaleDateString()}</span>
+                                                <span className="text-white">{loan.createdAt ? new Date(loan.createdAt).toLocaleDateString() : 'N/A'}</span>
                                             </div>
                                             {loan.collateralLocked && (
                                                 <div className="flex justify-between">
@@ -289,7 +289,7 @@ const MyLoansTab: React.FC = () => {
                                         <>
                                             <div className="flex justify-between">
                                                 <span className="text-white/60">Completed On:</span>
-                                                <span className="text-white">{new Date(loan.endDate).toLocaleDateString()}</span>
+                                                <span className="text-white">{loan.endDate ? new Date(loan.endDate).toLocaleDateString() : 'N/A'}</span>
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-white/60">Interest Paid:</span>
@@ -302,7 +302,7 @@ const MyLoansTab: React.FC = () => {
                                         <>
                                             <div className="flex justify-between">
                                                 <span className="text-white/60">Defaulted On:</span>
-                                                <span className="text-white">{new Date(loan.endDate).toLocaleDateString()}</span>
+                                                <span className="text-white">{loan.endDate ? new Date(loan.endDate).toLocaleDateString() : 'N/A'}</span>
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-white/60">Collateral Status:</span>
@@ -324,7 +324,7 @@ const MyLoansTab: React.FC = () => {
                                     </button>
                                 )}
 
-                                {loan.status === 'active' && loan.type === 'lender' && loan.remainingDays < 0 && (
+                                {loan.status === 'active' && loan.type === 'lender' && loan.remainingDays !== undefined && loan.remainingDays < 0 && (
                                     <button
                                         onClick={() => handleLiquidateCollateral(loan.id)}
                                         className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-md text-sm"

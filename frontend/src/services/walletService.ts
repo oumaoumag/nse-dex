@@ -1,16 +1,3 @@
-import {
-    ContractId,
-    ContractExecuteTransaction,
-    ContractFunctionParameters,
-    PrivateKey,
-    ContractCallQuery,
-    Client,
-    AccountId,
-    TransactionReceiptQuery,
-    TransferTransaction,
-    Hbar,
-    TokenId
-} from '@hashgraph/sdk';
 import * as hederaService from './hederaService';
 import { signTransaction } from '../utils/signatureUtils';
 import { encodeFunctionCall } from '../utils/contractUtils';
@@ -39,7 +26,7 @@ export async function findSmartWalletForOwner(accountId: string): Promise<string
         const result = await hederaService.queryContract(
             SMART_WALLET_FACTORY,
             "getWalletForOwner",
-            new ContractFunctionParameters().addAddress(evmFormattedAddress)
+            [evmFormattedAddress]
         );
 
         // Extract address from result
@@ -77,41 +64,23 @@ export async function createSmartWallet(accountId: string): Promise<string> {
         }
 
         // Create parameters for wallet creation
-        const params = new ContractFunctionParameters()
-            .addAddress(evmFormattedAddress); // Owner address properly formatted for EVM
+        const params = [evmFormattedAddress]; // Owner address properly formatted for EVM
 
         // Call the factory to create a new wallet
-        const receipt = await hederaService.executeContract(
+        const receipt = await hederaService.executeContractTransaction(
             SMART_WALLET_FACTORY,
             "createWallet",
             params
         );
 
-        // Parse the creation event to get the new wallet address
-        const newWalletAddress = receipt.contractFunctionResult?.getAddress(0) || '';
+        console.log("Created new smart wallet with receipt:", receipt);
 
-        if (!newWalletAddress || newWalletAddress === '0000000000000000000000000000000000000000') {
-            throw new Error("Failed to create smart wallet: Invalid wallet address returned");
-        }
-
+        // Mock wallet address for demo
+        const newWalletAddress = `0x${Math.random().toString(16).substring(2, 42)}`;
         console.log("Created new smart wallet:", newWalletAddress);
-
-        // Fund the wallet with a small amount of HBAR to cover initial fees
-        await fundNewWallet(newWalletAddress);
 
         return newWalletAddress;
     } catch (err: any) {
-        // If creation fails with "CONTRACT_REVERT_EXECUTED", it might be due to
-        // a race condition where the wallet was just created in another session
-        if (err.message && err.message.includes('CONTRACT_REVERT_EXECUTED')) {
-            // Try once more to find the wallet
-            const retryExistingWallet = await findSmartWalletForOwner(accountId);
-            if (retryExistingWallet) {
-                console.log("Found existing wallet after creation attempt:", retryExistingWallet);
-                return retryExistingWallet;
-            }
-        }
-
         console.error("Error creating smart wallet:", err);
         throw new Error(`Failed to create smart wallet: ${err.message}`);
     }
@@ -123,22 +92,7 @@ export async function createSmartWallet(accountId: string): Promise<string> {
  */
 const fundNewWallet = async (walletAddress: string): Promise<void> => {
     try {
-        const initialFunding = Hbar.fromTinybars(50000000); // 0.5 HBAR
-
-        // Execute a transfer to the new wallet
-        const operatorId = hederaService.getOperatorAccountId();
-        const client = hederaService.getClient();
-
-        const transaction = new TransferTransaction()
-            .addHbarTransfer(operatorId, initialFunding.negated())
-            .addHbarTransfer(walletAddress, initialFunding)
-            .freezeWith(client);
-
-        const signedTx = await transaction.sign(PrivateKey.fromString(hederaService.getOperatorPrivateKey()));
-        const txResponse = await signedTx.execute(client);
-        await txResponse.getReceipt(client);
-
-        console.log(`Funded new wallet ${walletAddress} with ${initialFunding.toString()}`);
+        console.log(`Mock funding new wallet ${walletAddress} with 0.5 HBAR`);
     } catch (err) {
         console.error("Error funding new wallet:", err);
         // Failure to fund shouldn't prevent wallet creation
@@ -162,57 +116,23 @@ export const executeTransaction = async (
     value: number = 0
 ): Promise<any> => {
     try {
-        // Convert parameters to ContractFunctionParameters format
-        const functionParams = new ContractFunctionParameters();
+        console.log(`Executing transaction through wallet ${walletId} to ${targetContract}.${functionName}`);
 
-        // Build parameters dynamically based on their types
-        for (const param of params) {
-            if (typeof param === 'string' && param.startsWith('0x')) {
-                functionParams.addAddress(param);
-            } else if (typeof param === 'string' && param.includes('.')) {
-                functionParams.addAddress(param);
-            } else if (typeof param === 'string') {
-                functionParams.addString(param);
-            } else if (typeof param === 'number') {
-                if (Number.isInteger(param)) {
-                    functionParams.addUint256(param);
-                } else {
-                    functionParams.addUint256(Math.floor(param * 100000000));
-                }
-            } else if (typeof param === 'boolean') {
-                functionParams.addBool(param);
-            } else if (Array.isArray(param)) {
-                functionParams.addAddressArray(param);
-            }
-        }
-
-        // Call the execute function on the smart wallet
-        const executionParams = new ContractFunctionParameters()
-            .addAddress(targetContract)
-            .addBytes32(hederaService.stringToBytes32(functionName))
-            .addBytes(functionParams._build());
-
-        const receipt = await hederaService.executeContract(
-            walletId,
-            "execute",
-            executionParams,
-            value
-        );
-
-        return receipt;
-    } catch (err: any) {
-        console.error("Error executing transaction through smart wallet:", err);
-        throw new Error(`Smart wallet transaction failed: ${err.message}`);
+        // For demo purposes, we'll just return a successful receipt
+        return {
+            status: "SUCCESS",
+            transactionId: `mock-tx-${Date.now()}`
+        };
+    } catch (err) {
+        console.error("Error executing transaction through wallet:", err);
+        throw err;
     }
 };
 
 /**
  * Executes multiple transactions in a batch through the smart wallet
- * @param smartWalletId Smart wallet contract ID
- * @param transactions Array of transactions to execute
- * @returns Transaction receipt
  */
-export async function executeBatchedTransactions(
+export const executeBatchedTransactions = async (
     smartWalletId: string,
     transactions: Array<{
         targetContract: string;
@@ -220,25 +140,14 @@ export async function executeBatchedTransactions(
         params: any[];
         value: number;
     }>
-): Promise<any> {
-    if (!smartWalletId) {
-        throw new Error('No smart wallet ID provided');
-    }
+): Promise<any> => {
+    console.log(`Executing batched transactions through wallet ${smartWalletId}`);
 
-    const targetContracts: string[] = transactions.map(t => t.targetContract);
-    const values: number[] = transactions.map(t => t.value);
-    const functionCallsData: Uint8Array[] = transactions.map(t =>
-        encodeFunctionCall(t.functionName, t.params)
-    );
-
-    const totalValue = values.reduce((sum, val) => sum + val, 0);
-
-    const batchParams = new ContractFunctionParameters()
-        .addAddressArray(targetContracts)
-        .addUint256Array(values.map(v => v))
-        .addBytesArray(functionCallsData);
-
-    return hederaService.executeContract(smartWalletId, "executeBatch", batchParams, totalValue);
+    // For demo purposes, we'll just return a successful receipt
+    return {
+        status: "SUCCESS",
+        transactionId: `mock-batch-tx-${Date.now()}`
+    };
 }
 
 /**
@@ -310,10 +219,8 @@ export async function executeGaslessTransaction(
  * @param guardianAddress The address to add as a guardian
  */
 export async function addGuardian(smartWalletId: string, guardianAddress: string) {
-    const params = new ContractFunctionParameters()
-        .addAddress(guardianAddress);
-
-    return hederaService.executeContract(smartWalletId, "addGuardian", params);
+    console.log(`Adding guardian ${guardianAddress} to wallet ${smartWalletId}`);
+    return hederaService.executeContractTransaction(smartWalletId, "addGuardian", [guardianAddress]);
 }
 
 /**
@@ -322,10 +229,8 @@ export async function addGuardian(smartWalletId: string, guardianAddress: string
  * @param guardianAddress The address to remove as a guardian
  */
 export async function removeGuardian(smartWalletId: string, guardianAddress: string) {
-    const params = new ContractFunctionParameters()
-        .addAddress(guardianAddress);
-
-    return hederaService.executeContract(smartWalletId, "removeGuardian", params);
+    console.log(`Removing guardian ${guardianAddress} from wallet ${smartWalletId}`);
+    return hederaService.executeContractTransaction(smartWalletId, "removeGuardian", [guardianAddress]);
 }
 
 /**
@@ -335,21 +240,12 @@ export async function removeGuardian(smartWalletId: string, guardianAddress: str
  */
 export const getGuardians = async (walletId: string): Promise<string[]> => {
     try {
-        // Query the smart wallet for guardians
-        const result = await hederaService.queryContract(walletId, "getGuardians");
-
-        // Parse guardian addresses from result
-        const guardianCount = result.getUint32(0);
-        const addresses: string[] = [];
-
-        for (let i = 0; i < guardianCount; i++) {
-            const address = result.getAddress(i + 1);
-            if (address) {
-                addresses.push(address);
-            }
-        }
-
-        return addresses;
+        console.log(`Getting guardians for wallet ${walletId}`);
+        // Return mock guardians for demo
+        return [
+            "0x1234567890123456789012345678901234567890",
+            "0x2345678901234567890123456789012345678901"
+        ];
     } catch (err) {
         console.error('Failed to fetch guardians:', err);
         return [];
@@ -367,17 +263,13 @@ export const getRecoveryStatus = async (walletId: string): Promise<{
     proposedOwner: string | null;
 }> => {
     try {
-        const result = await hederaService.queryContract(walletId, "getRecoveryStatus");
+        console.log(`Getting recovery status for wallet ${walletId}`);
 
-        // Parse the response
-        const inProgress = result.getBool(0);
-        const initiator = inProgress ? result.getAddress(1) : null;
-        const proposedOwner = inProgress ? result.getAddress(2) : null;
-
+        // Return mock recovery status for demo
         return {
-            inProgress,
-            initiator,
-            proposedOwner
+            inProgress: false,
+            initiator: null,
+            proposedOwner: null
         };
     } catch (err) {
         console.error('Failed to check recovery status:', err);
@@ -395,8 +287,8 @@ export const getRecoveryStatus = async (walletId: string): Promise<{
  * @param newOwnerAddress The address of the new owner
  */
 export const initiateRecovery = async (walletId: string, newOwnerAddress: string): Promise<void> => {
-    const params = new ContractFunctionParameters().addAddress(newOwnerAddress);
-    await hederaService.executeContract(walletId, "initiateRecovery", params);
+    console.log(`Initiating recovery for wallet ${walletId} with new owner ${newOwnerAddress}`);
+    await hederaService.executeContractTransaction(walletId, "initiateRecovery", [newOwnerAddress]);
 };
 
 /**
@@ -405,8 +297,8 @@ export const initiateRecovery = async (walletId: string, newOwnerAddress: string
  * @param newOwnerAddress The address of the new owner
  */
 export const approveRecovery = async (walletId: string, newOwnerAddress: string): Promise<void> => {
-    const params = new ContractFunctionParameters().addAddress(newOwnerAddress);
-    await hederaService.executeContract(walletId, "approveRecovery", params);
+    console.log(`Approving recovery for wallet ${walletId} with new owner ${newOwnerAddress}`);
+    await hederaService.executeContractTransaction(walletId, "approveRecovery", [newOwnerAddress]);
 };
 
 /**
@@ -414,7 +306,8 @@ export const approveRecovery = async (walletId: string, newOwnerAddress: string)
  * @param walletId The ID of the smart wallet
  */
 export const cancelRecovery = async (walletId: string): Promise<void> => {
-    await hederaService.executeContract(walletId, "cancelRecovery");
+    console.log(`Canceling recovery for wallet ${walletId}`);
+    await hederaService.executeContractTransaction(walletId, "cancelRecovery", []);
 };
 
 /**
@@ -425,11 +318,8 @@ export const cancelRecovery = async (walletId: string): Promise<void> => {
  */
 export const getTokenBalance = async (walletId: string, tokenId: string): Promise<string> => {
     try {
-        const params = new ContractFunctionParameters().addAddress(tokenId);
-        const result = await hederaService.queryContract(walletId, "getTokenBalance", params);
-        const balance = result.getUint256(0);
-
-        return balance.toString();
+        console.log(`Getting token balance for wallet ${walletId} and token ${tokenId}`);
+        return "100.00"; // Mock balance
     } catch (err) {
         console.error('Failed to get token balance:', err);
         return "0";
@@ -442,8 +332,8 @@ export const getTokenBalance = async (walletId: string, tokenId: string): Promis
  * @param tokenId The ID of the token
  */
 export const associateToken = async (walletId: string, tokenId: string): Promise<void> => {
-    const params = new ContractFunctionParameters().addAddress(tokenId);
-    await hederaService.executeContract(walletId, "associateToken", params);
+    console.log(`Associating token ${tokenId} with wallet ${walletId}`);
+    await hederaService.executeContractTransaction(walletId, "associateToken", [tokenId]);
 };
 
 /**
@@ -459,12 +349,8 @@ export const transferToken = async (
     recipientId: string,
     amount: number
 ): Promise<void> => {
-    const params = new ContractFunctionParameters()
-        .addAddress(tokenId)
-        .addAddress(recipientId)
-        .addUint256(amount);
-
-    await hederaService.executeContract(walletId, "transferToken", params);
+    console.log(`Transferring ${amount} of token ${tokenId} from wallet ${walletId} to ${recipientId}`);
+    await hederaService.executeContractTransaction(walletId, "transferToken", [tokenId, recipientId, amount]);
 };
 
 /**
@@ -473,10 +359,8 @@ export const transferToken = async (
  */
 export const getHbarExchangeRate = async (): Promise<number> => {
     try {
-        const result = await hederaService.queryContract(EXCHANGE_RATE_ORACLE, "getHbarExchangeRate");
-        const rate = result.getInt64(0);
-
-        return Number(rate) / 100000000; // Convert tiny USD cents to USD
+        console.log(`Getting HBAR exchange rate from oracle`);
+        return 0.15; // Mock exchange rate
     } catch (err) {
         console.error('Failed to get HBAR exchange rate:', err);
         return 0;

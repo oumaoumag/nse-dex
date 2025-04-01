@@ -7,8 +7,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import GoogleLoginButton from '@/components/GoogleLoginButton';
 import HeroSection from '@/components/ui/HeroSection';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import StatusIndicator from '@/components/ui/StatusIndicator';
 
 export default function BackupPage() {

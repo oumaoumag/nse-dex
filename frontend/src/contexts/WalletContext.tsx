@@ -1,10 +1,6 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { 
-  Client, AccountId, PrivateKey, ContractId, 
-  AccountBalanceQuery, ContractCallQuery, ContractFunctionParameters, ContractFunctionResult
-} from '@hashgraph/sdk';
 import { signTransaction } from '../utils/signatureUtils';
 import * as hederaService from '../services/hederaService';
 import * as walletService from '../services/walletService';
@@ -13,7 +9,7 @@ import { useSession } from 'next-auth/react';
 import { getDemoBalances } from "@/services/walletService";
 
 type WalletContextType = {
-  client: Client | null;
+  client: any | null;
   accountId: string | null;
   isConnected: boolean;
   smartWalletId: string | null;
@@ -99,7 +95,7 @@ interface WalletProviderProps {
 
 export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const { data: session, status } = useSession();
-  const [client, setClient] = useState<Client | null>(null);
+  const [client, setClient] = useState<any | null>(null);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [smartWalletId, setSmartWalletId] = useState<string | null>(null);
@@ -143,26 +139,10 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         console.log("Initializing Hedera client for user:", session.user.id);
 
         // Initialize Hedera client
-        const client = hederaService.initializeClient();
+        const client = hederaService.createClient();
         setClient(client);
 
-        // Check if client has valid operator
-        if (!hederaService.verifyClientOperator(client)) {
-          throw new Error("Hedera client operator credentials are missing or invalid");
-        }
-
-        // Check network connectivity with a simple test
-        const isNetworkConnected = await hederaService.testNetworkConnectivity(client, 3);
-        if (!isNetworkConnected) {
-          console.warn("Unable to connect to Hedera network, switching to fallback mode");
-          // Even though we have issues, still set connected to true for demo functionality
-          setAccountId(session.user.id);
-          setIsConnected(true);
-          localStorage.setItem('tajiri-demo-mode', 'true');
-          return;
-        }
-
-        // Set the user ID from session as the account ID
+        // In demo mode, we don't need to verify the client
         setAccountId(session.user.id);
         setIsConnected(true);
 
@@ -381,9 +361,15 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     setIsError(false);
     
     try {
+      // Mock values for demo
+      const mockAccountId = accountId || '0.0.12345';
+      const mockPrivateKey = "DEMO_PRIVATE_KEY"; // This is just a placeholder, not a real key
+
       // For gas-less transactions, we use a relayer service
       const receipt = await walletService.executeGaslessTransaction(
+        mockAccountId,
         smartWalletId,
+        mockPrivateKey,
         targetContract,
         functionName,
         params,

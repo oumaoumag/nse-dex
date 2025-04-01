@@ -1,14 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { tokenService } from '../services/tokenService';
 import { useWallet } from './WalletContext';
-import { StockTokenInfo } from '../services/tokenService';
+import { StockTokenInfo } from '../models/StockTokenInfo';
 
 interface TokenContextType {
     stockTokens: StockTokenInfo[];
     isLoading: boolean;
     error: string | null;
     refreshTokens: () => Promise<void>;
-    getTokenBalance: (tokenId: string) => Promise<number>;
+    getTokenBalance: (tokenType: string) => Promise<string>;
     updateTokenPrice: (symbol: string, newPrice: number) => Promise<void>;
 }
 
@@ -33,11 +33,11 @@ export function TokenProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const getTokenBalance = async (tokenId: string): Promise<number> => {
+    const getTokenBalance = async (tokenType: string): Promise<string> => {
         if (!accountId) {
             throw new Error('Wallet not connected');
         }
-        return tokenService.getTokenBalance(tokenId, accountId);
+        return tokenService.getTokenBalance(accountId, tokenType);
     };
 
     const updateTokenPrice = async (symbol: string, newPrice: number) => {

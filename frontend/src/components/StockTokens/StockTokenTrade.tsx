@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useToken } from '../../contexts/TokenContext';
 import { useWallet } from '../../contexts/WalletContext';
-import { StockTokenInfo } from '../../services/tokenService';
+import { StockTokenInfo } from '../../models/StockTokenInfo';
 import { formatHbar } from '../../utils/formatters';
 
 interface StockTokenTradeProps {

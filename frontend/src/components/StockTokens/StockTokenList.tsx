@@ -1,23 +1,24 @@
 import React, { useState } from 'react';
 import { useToken } from '../../contexts/TokenContext';
-import { StockTokenInfo } from '../../services/tokenService';
+import { StockTokenInfo } from '../../models/StockTokenInfo';
 import { formatHbar } from '../../utils/formatters';
 import { StockTokenTrade } from './StockTokenTrade';
 
 export function StockTokenList() {
     const { stockTokens, isLoading, error, getTokenBalance } = useToken();
-    const [balances, setBalances] = React.useState<Record<string, number>>({});
+    const [balances, setBalances] = React.useState<Record<string, string>>({});
     const [selectedToken, setSelectedToken] = useState<StockTokenInfo | null>(null);
 
     React.useEffect(() => {
         const fetchBalances = async () => {
-            const newBalances: Record<string, number> = {};
+            const newBalances: Record<string, string> = {};
             for (const token of stockTokens) {
                 try {
-                    const balance = await getTokenBalance(token.tokenId);
+                    const balance = await getTokenBalance(token.symbol);
                     newBalances[token.tokenId] = balance;
                 } catch (err) {
                     console.error(`Failed to fetch balance for ${token.symbol}:`, err);
+                    newBalances[token.tokenId] = "0.00";
                 }
             }
             setBalances(newBalances);
@@ -59,7 +60,7 @@ export function StockTokenList() {
                     <StockTokenCard
                         key={token.tokenId}
                         token={token}
-                        balance={balances[token.tokenId] || 0}
+                        balance={balances[token.tokenId] || "0.00"}
                         onTrade={() => setSelectedToken(token)}
                     />
                 ))}
@@ -77,7 +78,7 @@ export function StockTokenList() {
 
 interface StockTokenCardProps {
     token: StockTokenInfo;
-    balance: number;
+    balance: string;
     onTrade: () => void;
 }
 
