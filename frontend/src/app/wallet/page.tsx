@@ -291,7 +291,7 @@ export default function WalletPage() {
     return (
       <div className="min-h-screen bg-decode-black pt-28 px-4">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl md:text-4xl font-bold mb-8 decode-gradient bg-clip-text text-transparent">Wallet</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-decode-green">Wallet</h1>
 
           <div className="bg-decode-card border border-decode-green/20 rounded-xl p-8 text-center">
             <h2 className="text-xl font-semibold mb-4">Authentication Required</h2>
@@ -311,7 +311,7 @@ export default function WalletPage() {
     <div className="min-h-screen bg-decode-black pt-28 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold decode-gradient bg-clip-text text-transparent">Wallet</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-decode-green">Wallet</h1>
           <div className="flex items-center gap-2">
             <WalletStatusIndicator />
             <Button

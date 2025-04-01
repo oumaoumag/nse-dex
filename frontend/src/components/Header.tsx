@@ -51,7 +51,7 @@ export default function Header() {
                                     e.currentTarget.style.display = 'none';
                                 }}
                             />
-                            <span className="text-2xl font-bold decode-gradient bg-clip-text text-transparent">Tajiri</span>
+                            <span className="text-2xl font-bold text-decode-green">Tajiri</span>
                         </Link>
                     </div>
                     <nav className="hidden md:flex items-center gap-6">
@@ -133,7 +133,7 @@ export default function Header() {
                                     e.currentTarget.style.display = 'none';
                                 }}
                             />
-                            <span className="text-xl font-bold decode-gradient bg-clip-text text-transparent">Tajiri</span>
+                            <span className="text-xl font-bold text-decode-green">Tajiri</span>
                         </Link>
                         <button
                             className="text-decode-white p-2"
