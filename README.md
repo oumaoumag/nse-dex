@@ -51,7 +51,7 @@ npm run deploy-contracts
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/leakeyqq/tajiri-v2.git
+   git clone https://github.com/oumaoumag/tajiri-v2.git
    cd tajiri-v2
    ```
 
@@ -115,7 +115,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Contact
 
-For inquiries, please contact [your-email@example.com].
+For inquiries, please contact tajiri02@gmail.com.
 
 ## Acknowledgements
 
